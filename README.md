@@ -7,6 +7,13 @@ Emilie Wapnick introduced the topic of multipotentialite and showed that we are 
 - Setup README.md Change Log
 - Started to scope the next 30 days.
 
+#### Wednesday, Nov 6th, 2019
+Spent additional time to make up for missed work yesterday.
+- Moved the data up further to be pass down to each component.
+- Setup each function for the buttons.
+- Added in types file for Questions object.
+- Setup required hooks and operations to adjust the rating index of the question in the hardcoded array.
+
 ## Available Scripts
 
 In the project directory, you can run:
