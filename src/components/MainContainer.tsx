@@ -15,32 +15,34 @@ const MainContainer: React.FunctionComponent = () => {
   const [qIndex, setQIndex] = React.useState(0);
 
   const moveBack = () => {
-    const newIndex = qIndex - 1;
-    setQIndex(newIndex);
-    console.log("move back index: ", newIndex);
+    if (qIndex !== 0) {
+      const newIndex = qIndex - 1;
+      setQIndex(newIndex);
+      setQuestionData(questionArray[newIndex]);
+    }
   }
 
   const voteDown = () => {
     questionData.rating -= 1;
     setQuestionData({question: questionData.question, rating: questionData.rating})
-    console.log("vote down : ", questionData.rating);
   }
 
   const voteUp = () => {
     questionData.rating += 1;
     setQuestionData({question: questionData.question, rating: questionData.rating})
-    console.log("vote up : ", questionData.rating);
   }
 
   const moveNext = () => {
-    const newIndex = qIndex + 1;
-    setQIndex(newIndex);
-    console.log("move next index: ", newIndex);
+    if (qIndex !== questionArray.length-1) {
+      const newIndex = qIndex + 1;
+      setQIndex(newIndex);
+      setQuestionData(questionArray[newIndex]);
+    }
   }
 
   React.useEffect(() => {
     setQuestionData(questionArray[qIndex]);
-}, []);
+  }, []);
 
 
   return (
