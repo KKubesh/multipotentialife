@@ -1,5 +1,7 @@
 import * as React from "react";
 import { Question } from "../../types/Questions";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPlusCircle,  } from "@fortawesome/free-solid-svg-icons";
 
 type ConrtolProps = {
   moveBack: () => void;
@@ -22,13 +24,14 @@ const Controls: React.FunctionComponent<ConrtolProps> = ({
 console.log(questionArray);
 
   return (
-    <div>
+    <div className="Controls">
         <button onClick={moveBack}>Back</button>
         <button onClick={voteDown}>Dislike</button>
-        <button onClick={voteUp}>Like</button>
+        <span className="fa-stack fa-lg">
+          <FontAwesomeIcon onClick={voteUp} icon={faPlusCircle} size="xs" />
+          {/* <FontAwesomeIcon onClick={voteUp} icon={faSquare} size="lg" /> */}
+        </span>
         <button onClick={moveNext}>Next</button>
-
-        
     </div>
   );
 };
