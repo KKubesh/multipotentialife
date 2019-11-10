@@ -2,31 +2,37 @@
 Emilie Wapnick introduced the topic of multipotentialite and showed that we are passionate and don't always follow in one direct path as we are interested in various areas throughout our life. The goal is to help others show how their multipotentialite lifestyle has lead them to the person they are today.
 
 ## Change Log for 30 day challenge
+#### Sunday Nov 10th, 2019
+- Continue adjusting the icons.
+- Removed the next button forced a vote.
+- Updated colors.
+- Refactored the code.
+
 #### Saturday Nov 9th, 2019
 - Fixed commit issues with incorrect accounts commiting to my files
 - Adjusted the styling.
 - Add in an icon and started layering.
 
-#### Friday, Nov 8th, 2019
+#### Friday Nov 8th, 2019
 - Updated the project on my own personal computer.
 - Added in Material UI.
 - Added in Font Awesome Icons for future styling.
 - Plan to do all coding on my personal computer since commits/pushes are showing up under work github account.
 
-#### Thursday, Nov 7th, 2019
+#### Thursday Nov 7th, 2019
 - Added in logic to change the question.
 - Removed console logs.
 - Prevented logic to reach beyond the given array size.
 - Started to look into simple styling changes to make.
 
-#### Wednesday, Nov 6th, 2019
+#### Wednesday Nov 6th, 2019
 Spent additional time to make up for missed work yesterday.
 - Moved the data up further to be pass down to each component.
 - Setup each function for the buttons.
 - Added in types file for Questions object.
 - Setup required hooks and operations to adjust the rating index of the question in the hardcoded array.
 
-#### Monday, Nov 4th, 2019
+#### Monday Nov 4th, 2019
 - Setup the project and added in new components.
 - Setup README.md Change Log
 - Started to scope the next 30 days.

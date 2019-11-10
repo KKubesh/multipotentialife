@@ -10,10 +10,15 @@
 }
 
 .Question {
-  height: 80%;
+  height: 70%;
   margin: 20px;
 }
 
 .Control {
   margin: 20px;
+}
+
+.DownVote {
+  width: 30px;
+  height: 30px;
 }
