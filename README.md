@@ -4,7 +4,8 @@ Emilie Wapnick introduced the topic of multipotentialite and showed that we are 
 ## Change Log for 30 day challenge
 #### Saturday Nov 9th, 2019
 - Fixed commit issues with incorrect accounts commiting to my files
-
+- Adjusted the styling.
+- Add in an icon and started layering.
 
 #### Friday, Nov 8th, 2019
 - Updated the project on my own personal computer.
