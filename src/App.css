@@ -5,20 +5,17 @@
 }
 
 .MainContainer {
-  width: 300px;
-  height: 500px;
+  width: 100%;
 }
 
-.Question {
-  height: 70%;
-  margin: 20px;
+.PillTest {
+  width: 50%;
+  border-radius: 10px;
+  height: 20px;
+  background: greenyellow;
 }
 
-.Control {
-  margin: 20px;
-}
-
-.DownVote {
-  width: 30px;
-  height: 30px;
+.OneYear {
+  width: 50%;
+  height: 100px;
 }
