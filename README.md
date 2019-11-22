@@ -3,7 +3,7 @@ Emilie Wapnick introduced the topic of multipotentialite and showed that we are 
 
 ## Change Log for 30 day challenge
 #### Thursday Nov 21th, 2019
-- Been pretty sick of the past few days.
+- Been pretty sick for the past few days.
 - Spent the day in a workshop talking about State Management in Pure React Components.
 - Started laying out multipotentialife scope.
 
