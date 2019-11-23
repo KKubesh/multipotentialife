@@ -16,6 +16,29 @@
 }
 
 .OneYear {
-  width: 50%;
-  height: 100px;
+  display: grid;
+  width: 800px;
+  height: 400px;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  grid-gap: 1rem;
+  grid-template-areas:
+    ". job1 job1 job1 job1 ."
+    "job2 job2 . . . ."
+    ". . . job3 job3 job3";
+}
+
+.job1 {
+  background-color: limegreen;
+  grid-area: job1;
+}
+
+.job2 {
+  background-color: lightcyan;
+  grid-area: job2;
+}
+
+.job3 {
+  background-color: magenta;
+  grid-area: job3;
 }
