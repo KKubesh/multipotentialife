@@ -1,55 +1,41 @@
 import * as React from "react";
-import { Card } from "@material-ui/core";
 import { OneYear } from "./OneYear";
 import '../App.css';
+import moment from "moment";
 
 const testData = [{
   job_title: "Farmer",
   company: "BigSky Corp",
-  months_employed: {
-    jan: false,
-    feb: false,
-    mar: false,
-    apr: false,
-    may: false,
-    jun: true,
-    jul: true,
-    aug: true,
-    sep: true,
-    oct: true,
-    nov: true,
-    dec: true,
+  timeline: {
+    startDate: "09/21/2018",
+    endDate: "08/15/2019",
   },
 },
 {
   job_title: "Teacher",
   company: "BigSky Corp",
-  months_employed: {
-    jan: true,
-    feb: true,
-    mar: true,
-    apr: false,
-    may: false,
-    jun: false,
-    jul: false,
-    aug: false,
-    sep: false,
-    oct: false,
-    nov: false,
-    dec: false,
+  timeline: {
+    startDate: "09/28/2019",
+    endDate: "11/15/2020",
   },
 }]
 
-const MainContainer: React.FunctionComponent = () => {
+const monthFunction = (startDate: string, endDate: string) => {
+  const output01 = [moment(startDate).format('M'), moment(startDate).format('YYYY')];
+  const output02 = [moment(endDate).format('M'), moment(endDate).format('YYYY')];
+  
+  console.log(output01);
+  console.log(output02);
+}
 
+const MainContainer: React.FunctionComponent = () => {
+  monthFunction(testData[0].timeline.startDate, testData[0].timeline.endDate)
   return (
-    <Card className="MainContainer">
-      Main Container
-      <div className="PillTest">
-        Some kind of test
-      </div>
+    <div className="MainContainer">
       <OneYear year={"2010"} jobs={testData}/>
-    </Card>
+      <OneYear year={"2011"} jobs={testData}/>
+      <OneYear year={"2012"} jobs={testData}/>
+    </div>
   );
 };
 

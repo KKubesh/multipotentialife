@@ -5,40 +5,43 @@
 }
 
 .MainContainer {
-  width: 100%;
-}
-
-.PillTest {
-  width: 50%;
-  border-radius: 10px;
-  height: 20px;
-  background: greenyellow;
+  width: 900px;
+  white-space: nowrap;
+  display: flex;
+  flex-wrap: nowrap; 
+  overflow: auto;
 }
 
 .OneYear {
+  flex: 0 0 auto;
+  width: 400px;
+}
+
+.TimelinePill {
   display: grid;
-  width: 800px;
-  height: 400px;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-rows: 20px 20px 20px;
   grid-gap: 1rem;
   grid-template-areas:
-    ". job1 job1 job1 job1 ."
-    "job2 job2 . . . ."
-    ". . . job3 job3 job3";
+    ". . . job1 job1 job1 job1 job1 job1 job1 . ."
+    "job2 job2 job2 job2 . . . . . . . ."
+    ". . . . . . . job3 job3 job3 job3 job3";
 }
 
 .job1 {
   background-color: limegreen;
+  border-radius: 10px;
   grid-area: job1;
 }
 
 .job2 {
   background-color: lightcyan;
+  border-radius: 10px;
   grid-area: job2;
 }
 
 .job3 {
   background-color: magenta;
+  border-radius: 10px;
   grid-area: job3;
 }
