@@ -2,6 +2,17 @@
 Emilie Wapnick introduced the topic of multipotentialite and showed that we are passionate and don't always follow in one direct path as we are interested in various areas throughout our life. The goal is to help others show how their multipotentialite lifestyle has lead them to the person they are today.
 
 ## Change Log for 30 day challenge
+#### Sunday Nov 24th, 2019
+- Watched another video on webpack.
+- Run a test project that has emotion and tailwind in it.
+- Looked at documentation of start repo and read up serviceworkers.
+
+#### Saturday Nov 23rd, 2019
+- Worked on a grid system.
+- Added in side scrolling.
+- Started laying ground work for how to dynamically change the sizing of jobs.
+- Learned more about webpack.
+
 #### Friday Nov 22nd, 2019
 - Removed emotion.
 - Added Moment for time tracking.
