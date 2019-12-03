@@ -2,6 +2,10 @@
 Emilie Wapnick introduced the topic of multipotentialite and showed that we are passionate and don't always follow in one direct path as we are interested in various areas throughout our life. The goal is to help others show how their multipotentialite lifestyle has lead them to the person they are today.
 
 ## Change Log for 30 day challenge
+#### Monday Dec 2nd, 2019
+- Worked on getting the css to dynamically change using variables.
+- Started to work on logic to pass down jobs to the oneyear component.
+
 #### Saturday Nov 30th, 2019
 - Continued working on the base project from scratch.
 - Built in a form.
