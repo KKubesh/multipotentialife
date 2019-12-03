@@ -1,5 +1,5 @@
 export type JobsData = {
-    job_title: string;
+    jobTitle: string;
     company: string;
     timeline: {
         startDate: string,

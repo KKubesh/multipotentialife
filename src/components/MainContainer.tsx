@@ -6,7 +6,7 @@ import TextField from '@material-ui/core/TextField';
 import { Button } from "@material-ui/core";
 
 const testData = [{
-  job_title: "Farmer",
+  jobTitle: "Farmer",
   company: "BigSky Corp",
   timeline: {
     startDate: "09/21/2018",
@@ -14,7 +14,7 @@ const testData = [{
   },
 },
 {
-  job_title: "Teacher",
+  jobTitle: "Teacher",
   company: "BigSky Corp",
   timeline: {
     startDate: "09/28/2019",
@@ -33,12 +33,22 @@ const monthFunction = (startDate: string, endDate: string) => {
 const setDates = (formData: any) => {
   console.log(Math.floor(moment(formData.endDate).diff(moment(formData.startDate), 'months', true)));
   console.log(formData);
+  console.log(document.documentElement.style.getPropertyValue('--row-one'));
+  console.log(document.documentElement.style.getPropertyValue('--row-two'));
+  document.documentElement.style.setProperty('--row-one','"job2 job2 job2 job2 . . . . . . . ."');
+  document.documentElement.style.setProperty('--row-two','". . . . . . . . . . job1 job1"');
+  document.documentElement.style.setProperty('--row-three','". . . . . . . job3 job3 job3 job3 job3"');
+  console.log(document.documentElement.style.getPropertyValue('--row-one'));
+  console.log(document.documentElement.style.getPropertyValue('--row-two'));
+
 }
 
 const MainContainer: React.FunctionComponent = () => {
   monthFunction(testData[0].timeline.startDate, testData[0].timeline.endDate)
 
   const [formData, setFormData] = React.useState({
+    jobTitle: "",
+    company: "",
     startDate: "",
     endDate: moment().format('YYYY-MM-DD')
   });
@@ -56,6 +66,26 @@ const MainContainer: React.FunctionComponent = () => {
   return (
     <div>
       <form noValidate>
+        <TextField
+          id="jobTitle"
+          name="jobTitle"
+          label="Job Title"
+          type="text"
+          InputLabelProps={{
+            shrink: true,
+          }}
+          onChange={e => updateFormData(e)}
+        />
+        <TextField
+          id="company"
+          name="company"
+          label="company"
+          type="text"
+          InputLabelProps={{
+            shrink: true,
+          }}
+          onChange={e => updateFormData(e)}
+        />
         <TextField
           id="startDate"
           name="startDate"
@@ -82,8 +112,6 @@ const MainContainer: React.FunctionComponent = () => {
         </Button>
       </form>
       <div className="MainContainer">
-        <OneYear year={"2010"} jobs={testData}/>
-        <OneYear year={"2011"} jobs={testData}/>
         <OneYear year={"2012"} jobs={testData}/>
       </div>
     </div>

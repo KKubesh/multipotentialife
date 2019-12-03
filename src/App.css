@@ -1,3 +1,9 @@
+:root {
+  --row-one: ". . . . . . . . . . . .";
+  --row-two: ". . . . . . . . . . . .";
+  --row-three: ". . . . . . . . . . . .";
+}
+
 .App {
   text-align: center;
   justify-content: center;
@@ -23,9 +29,9 @@
   grid-template-rows: 20px 20px 20px;
   grid-gap: 1rem;
   grid-template-areas:
-    ". . . job1 job1 job1 job1 job1 job1 job1 . ."
-    "job2 job2 job2 job2 . . . . . . . ."
-    ". . . . . . . job3 job3 job3 job3 job3";
+    var(--row-one)
+    var(--row-two)
+    var(--row-three);
 }
 
 .job1 {
