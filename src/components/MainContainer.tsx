@@ -38,6 +38,7 @@ const setDates = (formData: any) => {
   document.documentElement.style.setProperty('--row-one','"job2 job2 job2 job2 . . . . . . . ."');
   document.documentElement.style.setProperty('--row-two','". . . . . . . . . . job1 job1"');
   document.documentElement.style.setProperty('--row-three','". . . . . . . job3 job3 job3 job3 job3"');
+  document.documentElement.style.setProperty('--grid-columns', '1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr');
   console.log(document.documentElement.style.getPropertyValue('--row-one'));
   console.log(document.documentElement.style.getPropertyValue('--row-two'));
 

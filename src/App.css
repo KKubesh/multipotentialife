@@ -1,7 +1,9 @@
 :root {
-  --row-one: ". . . . . . . . . . . .";
-  --row-two: ". . . . . . . . . . . .";
-  --row-three: ". . . . . . . . . . . .";
+  --grid-columns: ;
+  --grid-rows: 20px 20px 20px;
+  --row-one: "";
+  --row-two: "";
+  --row-three: "";
 }
 
 .App {
@@ -25,8 +27,8 @@
 
 .TimelinePill {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
-  grid-template-rows: 20px 20px 20px;
+  grid-template-columns: var(--grid-columns);
+  grid-template-rows: var(--grid-rows);
   grid-gap: 1rem;
   grid-template-areas:
     var(--row-one)
