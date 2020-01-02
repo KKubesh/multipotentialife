@@ -1,5 +1,6 @@
 import styled from 'styled-components';
 import { Button } from 'semantic-ui-react';
+import { Main } from '../components/Main';
 
 const StyledContainer = styled.div`
   display: flex;
@@ -11,13 +12,7 @@ const StyledContainer = styled.div`
 
 const Home = () => (
   <StyledContainer>
-    <div>
-      <h1>Next.js + Fomantic-UI!</h1>
-    </div>
-    <div>
-      <Button primary>Primary</Button>
-      <Button secondary>Secondary</Button>
-    </div>
+    <Main />
   </StyledContainer>
 );
 export default Home;

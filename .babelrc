@@ -1,4 +1,17 @@
 {
-  "presets": ["next/babel"],
-  "plugins": [["styled-components", { "ssr": true }]]
+  "presets": [
+    "next/babel",
+    "@emotion/babel-preset-css-prop"
+  ],
+  "plugins": [
+    ["styled-components", { "ssr": true }],
+    ["emotion"],
+    [
+      "import",
+      {
+        "libraryName": "antd",
+        "style": "css"
+      }
+    ]
+  ]
 }

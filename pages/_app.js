@@ -1,16 +1,14 @@
 import React from 'react';
-import App, { Container } from 'next/app';
+import App from 'next/app';
 
-import '../.semantic/dist/semantic.min.css';
+import 'semantic-ui-css/semantic.css'
 
 class MyApp extends App {
   render() {
     const { Component, pageProps } = this.props;
 
     return (
-      <Container>
-        <Component {...pageProps} />
-      </Container>
+      <Component {...pageProps} />
     );
   }
 }
