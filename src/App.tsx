@@ -3,6 +3,8 @@ import { DataPanel } from './components/DataPanel';
 import { ImportFlow } from './import/ui/ImportFlow';
 import { PdfButton } from './import/PdfButton';
 import { sampleDoc } from './data/sample';
+import type { Selection } from './detail/selection';
+import { SelectionDetail } from './detail/SelectionDetail';
 import { PALETTE_IDS } from './data/schema';
 import { useTimeline } from './data/timelineContext';
 import { PALETTES } from './timeline/palettes';
@@ -17,9 +19,10 @@ export function App() {
   const [tab, setTab] = useState<'timeline' | 'data'>('timeline');
   const [zoom, setZoom] = useState(0);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
 
   return (
-    <div className="app">
+    <div className={`app${selection && !importFile && tab === 'timeline' ? ' has-detail' : ''}`}>
       <header className="app-head">
         <h1>
           multipotential<span className="brand-i">i</span>life
@@ -99,7 +102,7 @@ export function App() {
               <p className="muted">You can also restore a backup from the Data tab.</p>
             </div>
           ) : (
-            <Timeline doc={doc} zoom={ZOOMS[zoom]} />
+            <Timeline doc={doc} zoom={ZOOMS[zoom]} selection={selection} onSelect={setSelection} />
           )}
 
           {doc.roles.length > 0 && (
@@ -115,6 +118,8 @@ export function App() {
               })}
             </ul>
           )}
+
+          <SelectionDetail doc={doc} selection={selection} onSelect={setSelection} onClose={() => setSelection(null)} />
         </main>
       )}
     </div>

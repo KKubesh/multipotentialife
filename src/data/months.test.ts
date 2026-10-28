@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { currentMonth, formatMonth, MONTH_SHORT_NAMES, monthIndex, toYearMonth } from './months';
+import {
+  currentMonth,
+  formatDuration,
+  formatMonth,
+  MONTH_SHORT_NAMES,
+  monthIndex,
+  monthsCovered,
+  toYearMonth,
+} from './months';
 
 describe('months', () => {
   it('builds and reads month strings', () => {
@@ -16,5 +24,14 @@ describe('months', () => {
   it('formats months for display', () => {
     expect(formatMonth('2021-04')).toBe('Apr 2021');
     expect(formatMonth('now')).toBe('Present');
+  });
+
+  it('counts and formats durations like LinkedIn', () => {
+    expect(monthsCovered('2019-04', '2021-04')).toBe(25);
+    expect(formatDuration(25)).toBe('2 yrs 1 mo');
+    expect(monthsCovered('2025-11', 'now', '2026-10')).toBe(12);
+    expect(formatDuration(12)).toBe('1 yr');
+    expect(formatDuration(5)).toBe('5 mos');
+    expect(formatDuration(1)).toBe('1 mo');
   });
 });

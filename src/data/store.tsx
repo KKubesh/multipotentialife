@@ -12,6 +12,13 @@ export function TimelineProvider({ children, initial }: { children: ReactNode; i
     first.source === 'unavailable' ? 'unavailable' : 'saved',
   );
   const isFirstRender = useRef(true);
+  /** A change that hasn't reached storage yet (the debounce is still waiting). */
+  const unsaved = useRef<typeof doc | null>(null);
+
+  const save = useCallback((toSave: typeof doc) => {
+    unsaved.current = null;
+    setSaveStatus(saveDoc(toSave));
+  }, []);
 
   // Autosave, debounced, after every change (not on the initial load).
   useEffect(() => {
@@ -19,24 +26,28 @@ export function TimelineProvider({ children, initial }: { children: ReactNode; i
       isFirstRender.current = false;
       return;
     }
+    unsaved.current = doc;
     setSaveStatus('pending');
-    const timer = setTimeout(() => setSaveStatus(saveDoc(doc)), SAVE_DELAY_MS);
+    const timer = setTimeout(() => save(doc), SAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [doc]);
+  }, [doc, save]);
 
-  // Save right away if the tab is closed or hidden mid-debounce.
+  // If the tab is hidden or closed mid-debounce, save that change right away. Only a waiting
+  // change: saving an unchanged timeline here would overwrite newer data from another tab.
   useEffect(() => {
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') saveDoc(doc);
+    const flush = () => {
+      if (unsaved.current) save(unsaved.current);
     };
-    const onPageHide = () => saveDoc(doc);
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pagehide', flush);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('pagehide', flush);
     };
-  }, [doc]);
+  }, [save]);
 
   const dispatch = useCallback((action: Action) => rawDispatch(action), []);
   const value = useMemo<TimelineStore>(

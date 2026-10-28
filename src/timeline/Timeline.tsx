@@ -1,10 +1,11 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { currentMonth, formatMonth } from '../data/months';
 import type { Role, TimelineDoc } from '../data/schema';
+import type { Selection } from '../detail/selection';
 import { HatchDefs } from './hatches';
 import { useLabelMeasurer } from './labelMeasure';
 import { fitPxPerMonth, GEOMETRY, layoutTimeline } from './layout';
-import { EventDot, Pill, SidecarBand } from './Pill';
+import { EventDot, FloatingDot, Pill, SidecarBand } from './Pill';
 import { pillSwatches, swatchForThread, UNTHREADED } from './palettes';
 import './timeline.css';
 
@@ -16,13 +17,16 @@ export interface TimelineProps {
   /** 1 = the whole career fits the width; higher zooms in. */
   zoom?: number;
   now?: string;
+  /** The role or event whose detail is open; everything else fades. */
+  selection?: Selection | null;
+  onSelect?: (selection: Selection) => void;
 }
 
 /** Below this the pills get too thin to read; the timeline scrolls instead. */
 const MIN_PX_PER_MONTH = 1.6;
 const MAX_PX_PER_MONTH = 24;
 
-export function Timeline({ doc, zoom = 1, now = currentMonth() }: TimelineProps) {
+export function Timeline({ doc, zoom = 1, now = currentMonth(), selection = null, onSelect }: TimelineProps) {
   const showTitles = doc.settings.showTitles;
   const scroller = useRef<HTMLDivElement>(null);
   const [viewW, setViewW] = useState(0);
@@ -65,6 +69,14 @@ export function Timeline({ doc, zoom = 1, now = currentMonth() }: TimelineProps)
   const yearStep = pxPerMonth * 12 >= 40 ? 1 : 2;
   const swatchesOf = (r: Role) => pillSwatches(doc, r.threads);
 
+  const hasSelection = selection !== null;
+  const isSelected = (kind: Selection['kind'], id: string) => selection?.kind === kind && selection.id === id;
+  const selectRole = (id: string, eventId?: string) => () => onSelect?.({ kind: 'role', id, eventId });
+  const tapState = (kind: Selection['kind'], id: string) => {
+    const selected = isSelected(kind, id);
+    return { selected, dim: hasSelection && !selected };
+  };
+
   return (
     <div className="tl-scroll" ref={scroller} onScroll={onScroll}>
       <HatchDefs />
@@ -105,6 +117,8 @@ export function Timeline({ doc, zoom = 1, now = currentMonth() }: TimelineProps)
                 split={s.role.threads.length > 1}
                 label={roleLabel(s.role)}
                 style={{ left: s.left - lead, width: s.right - s.left + lead, top: s.y, height: GEOMETRY.pillH }}
+                onSelect={selectRole(s.role.id)}
+                {...tapState('role', s.role.id)}
               />
             );
           })}
@@ -115,6 +129,8 @@ export function Timeline({ doc, zoom = 1, now = currentMonth() }: TimelineProps)
               swatch={c.role.threads[0] ? swatchForThread(doc, c.role.threads[0]) : UNTHREADED}
               label={`${roleLabel(c.role)} · alongside`}
               style={{ left: c.left, width: c.right - c.left, top: c.y, height: GEOMETRY.sidecarH }}
+              onSelect={selectRole(c.role.id)}
+              {...tapState('role', c.role.id)}
             />
           ))}
 
@@ -124,17 +140,18 @@ export function Timeline({ doc, zoom = 1, now = currentMonth() }: TimelineProps)
               swatches={swatchesOf(e.role)}
               label={`${e.event.title} · ${formatMonth(e.event.date)} · during ${e.role.title || 'role'}`}
               style={{ left: e.x, top: e.y }}
+              onSelect={selectRole(e.role.id, e.event.id)}
+              {...tapState('role', e.role.id)}
             />
           ))}
 
           {layout.floating.map((f) => (
-            <span
+            <FloatingDot
               key={f.event.id}
-              className="fev"
-              role="img"
-              aria-label={`${f.event.title} · ${formatMonth(f.event.date)}`}
-              title={`${f.event.title} · ${formatMonth(f.event.date)}`}
+              label={`${f.event.title} · ${formatMonth(f.event.date)}`}
               style={{ left: f.x, top: f.y }}
+              onSelect={() => onSelect?.({ kind: 'floating', id: f.event.id })}
+              {...tapState('floating', f.event.id)}
             />
           ))}
 
@@ -143,21 +160,38 @@ export function Timeline({ doc, zoom = 1, now = currentMonth() }: TimelineProps)
               l: s.label,
               mono: swatchesOf(s.role)[0].kind === 'hatch',
               inv: isInverted(swatchesOf(s.role)[0]),
+              owner: { kind: 'role' as const, id: s.role.id },
             })),
-            ...layout.sidecars.map((s) => ({ l: s.label, mono: false, inv: false })),
-            ...layout.floating.map((f) => ({ l: f.label, mono: false, inv: false })),
-          ].map(({ l, mono, inv }, i) =>
-            l ? (
+            ...layout.sidecars.map((s) => ({
+              l: s.label,
+              mono: false,
+              inv: false,
+              owner: { kind: 'role' as const, id: s.role.id },
+            })),
+            ...layout.floating.map((f) => ({
+              l: f.label,
+              mono: false,
+              inv: false,
+              owner: { kind: 'floating' as const, id: f.event.id },
+            })),
+          ].map(({ l, mono, inv, owner }, i) => {
+            if (!l) return null;
+            const { dim } = tapState(owner.kind, owner.id);
+            const chip = mono && l.mode !== 'float' ? (inv ? ' chip inv' : ' chip') : '';
+            // Floating titles can be tapped too; titles inside a pill let the tap through to it.
+            return (
               <span
                 key={i}
-                className={`tl-label ${l.mode}${mono && l.mode !== 'float' ? (inv ? ' chip inv' : ' chip') : ''}`}
+                className={`tl-label ${l.mode}${chip}${dim ? ' dim' : ''}`}
                 style={{ left: l.x, top: l.y - 12, ...(l.mode === 'float' ? {} : { maxWidth: l.width }) }}
                 aria-hidden="true"
+                data-select={l.mode === 'float' || undefined}
+                onClick={l.mode === 'float' ? () => onSelect?.(owner) : undefined}
               >
                 {l.text}
               </span>
-            ) : null,
-          )}
+            );
+          })}
         </div>
       )}
     </div>
