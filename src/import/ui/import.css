@@ -46,27 +46,6 @@
   margin: 0;
 }
 
-.btn.ghost {
-  border-color: transparent;
-  background: transparent;
-  color: #595959;
-  padding: 0 8px;
-}
-.btn.small {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 13px;
-}
-.linkish {
-  font: inherit;
-  background: none;
-  border: 0;
-  padding: 0;
-  color: var(--primary);
-  cursor: pointer;
-  text-align: left;
-}
-
 /* Loader: a pill that grows, in two threads' colors. */
 .imp-loading {
   align-items: center;
@@ -86,7 +65,7 @@
   display: block;
   height: 100%;
   border-radius: 22px;
-  border: 1.5px solid #69b1ff;
+  border: 1.5px solid #2e93ff;
   background: linear-gradient(180deg, #bae0ff 50%, #efdbff 50%);
   animation: grow-pill 1.6s ease-in-out infinite;
 }

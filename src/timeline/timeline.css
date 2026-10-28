@@ -48,7 +48,6 @@
   --bw: 1.5px;
   position: absolute;
   background: linear-gradient(180deg, var(--b1) 0 36%, var(--b2) 64% 100%);
-  transition: opacity 0.2s;
 }
 .seg > .fill {
   position: absolute;
@@ -79,9 +78,6 @@
   top: 50%;
   height: 1.5px;
   transform: translateY(-50%);
-}
-.seg.dim {
-  opacity: 0.45;
 }
 
 .seg.solo,
@@ -173,6 +169,43 @@
   box-sizing: border-box;
 }
 
+/* Tapping: pills, bands and dots are buttons that open the detail panel */
+.tap {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.2s;
+}
+.seg.tap {
+  border: 0;
+}
+/* Pills are clipped to their shape, which hides outlines, so focus and selection thicken the edge instead. */
+.seg.selected {
+  --bw: 2.5px;
+}
+.seg:focus-visible {
+  --bw: 3px;
+  outline: none;
+  background: var(--primary, #1677ff);
+}
+.ev:focus-visible,
+.band:focus-visible,
+.fev:focus-visible {
+  outline: 2px solid var(--primary, #1677ff);
+  outline-offset: 1px;
+}
+.fev.selected {
+  border-color: #262626;
+}
+/* While a detail is open, everything else steps back. */
+.tap.dim,
+.tl-label.dim {
+  opacity: 0.3;
+}
+
 /* Titles */
 .tl-label {
   position: absolute;
@@ -184,6 +217,8 @@
 }
 .tl-label.float {
   color: #262626;
+  pointer-events: auto;
+  cursor: pointer;
 }
 .tl-label.in,
 .tl-label.clip {

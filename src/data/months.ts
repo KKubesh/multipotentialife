@@ -42,3 +42,19 @@ export function formatMonth(value: YearMonth | RoleEnd): string {
   if (value === 'now') return 'Present';
   return `${MONTH_SHORT_NAMES[Number(value.slice(5, 7)) - 1]} ${value.slice(0, 4)}`;
 }
+
+/** Months a role covers, counting both its first and last month (Apr–Apr is 1). */
+export function monthsCovered(start: YearMonth, end: RoleEnd, now: YearMonth = currentMonth()): number {
+  const last = end === 'now' ? now : end;
+  return Math.max(1, monthIndex(last) - monthIndex(start) + 1);
+}
+
+/** "2 yrs 1 mo", "1 yr", "5 mos", the way LinkedIn writes durations. */
+export function formatDuration(months: number): string {
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  const parts = [];
+  if (years) parts.push(`${years} ${years === 1 ? 'yr' : 'yrs'}`);
+  if (rest || !years) parts.push(`${rest} ${rest === 1 ? 'mo' : 'mos'}`);
+  return parts.join(' ');
+}

@@ -66,6 +66,21 @@ npm run build
 
 `layout.test.ts` checks the sample and 200 random careers for any overlap, with titles on and off.
 
+## Role detail
+
+`src/detail/` is what opens when a role or event is tapped: a bottom sheet on phones, a right-side drawer from 768px (the timeline refits beside it). It closes with ✕, Escape or a tap outside.
+
+| File                      | What it does                                                                     |
+| ------------------------- | -------------------------------------------------------------------------------- |
+| `selection.ts`            | What's selected: a role (optionally one of its events) or an event with no role  |
+| `relations.ts`            | "Role change · after …" and sidecar lines, the same way the layout links roles   |
+| `DetailPanel.tsx`         | The sheet/drawer shell: closing, focus moves to the heading and back to the pill |
+| `RoleDetail.tsx`          | Company, title, dates and duration, relations, threads, details, events          |
+| `FloatingEventDetail.tsx` | An event with no parent role                                                     |
+| `SelectionDetail.tsx`     | Picks the right content for the selection                                        |
+
+Pills, sidecar bands and dots are buttons, so the timeline works with a keyboard too: Tab to a role, Enter to open it.
+
 ## LinkedIn import
 
 `src/import/` reads a LinkedIn "Save to PDF" profile on the device; nothing is uploaded.

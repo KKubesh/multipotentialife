@@ -28,8 +28,11 @@ export type Swatch = ColorSwatch | HatchSwatch;
 export const INK = '#141414';
 export const PAPER = '#ffffff';
 
-/** A role with no threads yet. */
-export const UNTHREADED: ColorSwatch = { kind: 'color', fill: '#ffffff', edge: '#d9d9d9' };
+/**
+ * A role with no threads yet: a slate tint, distinct from every palette color,
+ * so an untagged timeline reads as "not colored yet" rather than faint.
+ */
+export const UNTHREADED: ColorSwatch = { kind: 'color', fill: '#eef0f4', edge: '#8793a5' };
 
 const c = (fill: string, edge: string): ColorSwatch => ({ kind: 'color', fill, edge });
 const h = (hatch: HatchId, inverted = false): HatchSwatch => ({ kind: 'hatch', hatch, inverted });
@@ -48,25 +51,25 @@ export const PALETTES: Record<PaletteId, Palette> = {
     id: 'soft',
     name: 'Soft',
     swatches: [
-      c('#bae0ff', '#69b1ff'),
-      c('#efdbff', '#b37feb'),
-      c('#ffd8bf', '#ff9c6e'),
-      c('#ffd6e7', '#ff85c0'),
-      c('#d9f7be', '#95de64'),
-      c('#fff1b8', '#ffd666'),
+      c('#bae0ff', '#2e93ff'),
+      c('#efdbff', '#af78ea'),
+      c('#ffd8bf', '#d9784a'),
+      c('#ffd6e7', '#df6aa3'),
+      c('#d9f7be', '#56a223'),
+      c('#fff1b8', '#ba8800'),
     ],
-    library: [c('#b5f5ec', '#5cdbd3'), c('#d6e4ff', '#85a5ff')],
+    library: [c('#b5f5ec', '#24a199'), c('#d6e4ff', '#618bff')],
   },
   earth: {
     id: 'earth',
     name: 'Earth',
     swatches: [
-      c('#dbe8d3', '#94b57f'),
-      c('#e2ddef', '#9b8dc2'),
-      c('#f4dfcc', '#d29c6c'),
-      c('#f2dcd9', '#c98d86'),
-      c('#ece8e1', '#b8ad9b'),
-      c('#d8e6ea', '#86a9b4'),
+      c('#dbe8d3', '#749c5a'),
+      c('#e2ddef', '#988ac0'),
+      c('#f4dfcc', '#c78347'),
+      c('#f2dcd9', '#c3817a'),
+      c('#ece8e1', '#9f9077'),
+      c('#d8e6ea', '#6e98a5'),
     ],
     library: [],
   },
@@ -74,12 +77,12 @@ export const PALETTES: Record<PaletteId, Palette> = {
     id: 'bloom',
     name: 'Bloom',
     swatches: [
-      c('#b5f5ec', '#36cfc9'),
+      c('#b5f5ec', '#27a19c'),
       c('#d6e4ff', '#597ef7'),
-      c('#fff1b8', '#d4b106'),
-      c('#ffd6e7', '#f759ab'),
-      c('#d9f7be', '#73d13d'),
-      c('#ffe7ba', '#fa8c16'),
+      c('#fff1b8', '#ac9005'),
+      c('#ffd6e7', '#f752a7'),
+      c('#d9f7be', '#54a327'),
+      c('#ffe7ba', '#e07605'),
     ],
     library: [],
   },

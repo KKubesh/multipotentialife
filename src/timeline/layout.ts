@@ -158,6 +158,21 @@ export function fitPxPerMonth(doc: Doc, now: YearMonth, width: number) {
   return (width - 2 * GEOMETRY.padX) / Math.max(1, endMonth - firstMonth);
 }
 
+function toSpans(roles: Role[], nowMonth: number): Span[] {
+  return roles.map((role) => {
+    const start = monthIndex(role.start);
+    const end = (role.end === 'now' ? nowMonth : monthIndex(role.end)) + 1;
+    return { role, start, end: Math.max(end, start + 1) };
+  });
+}
+
+/** Which role each sidecar rides under, the same way the layout decides it: side role id → host role id. */
+export function findSidecarHosts(doc: Doc, now: YearMonth): Map<string, string> {
+  const hosts = new Map<string, string>();
+  for (const [sideId, host] of assignSidecarHosts(toSpans(doc.roles, monthIndex(now)))) hosts.set(sideId, host.role.id);
+  return hosts;
+}
+
 /** What every step of the layout needs to know. */
 interface Context {
   options: LayoutOptions;
@@ -184,11 +199,7 @@ interface PlannedUnit {
 
 export function layoutTimeline(doc: Doc, options: LayoutOptions): Layout {
   const nowMonth = monthIndex(options.now);
-  const spans: Span[] = doc.roles.map((role) => {
-    const start = monthIndex(role.start);
-    const end = (role.end === 'now' ? nowMonth : monthIndex(role.end)) + 1;
-    return { role, start, end: Math.max(end, start + 1) };
-  });
+  const spans = toSpans(doc.roles, nowMonth);
 
   const { firstMonth, endMonth } = timeRange(doc, options.now);
   const { pxPerMonth } = options;
