@@ -3,6 +3,7 @@ import { downloadBackup, readBackupFile } from '../data/backup';
 import { emptyDoc } from '../data/defaults';
 import type { TimelineDoc } from '../data/schema';
 import { useTimeline } from '../data/store';
+import { PdfButton } from '../import/PdfButton';
 
 /**
  * Temporary screen for this build step: shows what's stored on the device and
@@ -19,7 +20,7 @@ const SAVE_LABEL = {
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-export function DataPanel() {
+export function DataPanel({ onImport }: { onImport: (file: File) => void }) {
   const { doc, dispatch, loaded, saveStatus } = useTimeline();
   const fileInput = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<{ doc: TimelineDoc; warnings: string[]; name: string } | null>(null);
@@ -99,9 +100,7 @@ export function DataPanel() {
           <p className="empty">No roles yet.</p>
         )}
         <div className="row">
-          <button className="btn" onClick={() => dispatch({ type: 'addRole', role: { title: 'Sample role', company: 'Test Co.' } })}>
-            + Add sample role
-          </button>
+          <PdfButton className="btn" onFile={onImport}>Import LinkedIn PDF</PdfButton>
           <span className="sp" />
           {confirmClear ? (
             <>

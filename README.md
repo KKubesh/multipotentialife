@@ -50,6 +50,26 @@ npm run build
 
 `layout.test.ts` checks the sample and 200 random careers for any overlap, with titles on and off.
 
+## LinkedIn import
+
+`src/import/` reads a LinkedIn "Save to PDF" profile on the device; nothing is uploaded.
+
+| File | What it does |
+| --- | --- |
+| `pdf.ts` | Loads pdf.js on first use and turns the PDF into text lines (column, font size, position) |
+| `linkedin.ts` | Reads those lines into a profile: name, headline, link, roles with dates, locations and details (one per bullet or paragraph), education |
+| `drafts.ts` | Turns the profile into draft roles for the review: fills in months for year-only dates (and flags them), chains back-to-back roles at one company, flags long same-company overlaps |
+| `ImportFlow.tsx` | The import screens: growing-pill loader, one card per role (title, company, dates, optional threads, alongside or own row for overlaps, editable details), then a summary to add to or replace the timeline |
+| `PdfButton.tsx` | The "Import LinkedIn PDF" button and file picker |
+
+`linkedin.test.ts` uses a made-up profile laid out like LinkedIn's PDF. To check real PDFs without adding them to the repo:
+
+```sh
+MPL_PDFS="../someone.pdf ../another.pdf" npm test -- realPdf
+```
+
+It prints what it pulled from each file.
+
 Dates are month precision (`"2021-04"`); a current role ends with `"now"`.
 
 ## Support

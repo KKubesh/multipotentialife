@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { DataPanel } from './components/DataPanel';
+import { ImportFlow } from './import/ImportFlow';
+import { PdfButton } from './import/PdfButton';
 import { sampleDoc } from './data/sample';
 import { PALETTE_IDS } from './data/schema';
 import { useTimeline } from './data/store';
@@ -14,6 +16,7 @@ export function App() {
   const { doc, dispatch } = useTimeline();
   const [tab, setTab] = useState<'timeline' | 'data'>('timeline');
   const [zoom, setZoom] = useState(0);
+  const [importFile, setImportFile] = useState<File | null>(null);
 
   return (
     <div className="app">
@@ -27,8 +30,16 @@ export function App() {
         </nav>
       </header>
 
-      {tab === 'data' ? (
-        <DataPanel />
+      {importFile ? (
+        <ImportFlow
+          file={importFile}
+          onClose={() => {
+            setImportFile(null);
+            setTab('timeline');
+          }}
+        />
+      ) : tab === 'data' ? (
+        <DataPanel onImport={setImportFile} />
       ) : (
         <main className="tl-page">
           <div className="tl-controls">
@@ -56,9 +67,11 @@ export function App() {
 
           {doc.roles.length === 0 ? (
             <div className="tl-empty">
-              <p>No roles yet.</p>
-              <button className="btn pri" onClick={() => dispatch({ type: 'replace', doc: sampleDoc() })}>Load the sample timeline</button>
-              <p className="muted">Or restore your own backup from the Data tab.</p>
+              <p><b>Start with your LinkedIn profile</b></p>
+              <p className="muted">On LinkedIn, open your profile, choose More, then Save to PDF. It's read on this device and never uploaded.</p>
+              <PdfButton className="btn pri" onFile={setImportFile}>Import LinkedIn PDF</PdfButton>
+              <button className="btn ghost" onClick={() => dispatch({ type: 'replace', doc: sampleDoc() })}>Or look at a sample timeline</button>
+              <p className="muted">You can also restore a backup from the Data tab.</p>
             </div>
           ) : (
             <Timeline doc={doc} zoom={ZOOMS[zoom]} />
