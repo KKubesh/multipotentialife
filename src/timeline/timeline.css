@@ -1,0 +1,62 @@
+/* Timeline stage */
+.tl-scroll { overflow-x: auto; overflow-y: hidden; background: #fff; border: 1px solid var(--line, #f0f0f0); border-radius: 8px; -webkit-overflow-scrolling: touch; }
+.tl-stage { position: relative; font-family: Lato, system-ui, sans-serif; }
+.tl-grid { position: absolute; top: 20px; bottom: 0; width: 0; border-left: 1px dashed #f0f0f0; }
+.tl-year { position: absolute; top: 4px; font-size: 11px; color: #bfbfbf; transform: translateX(-50%); white-space: nowrap; }
+.tl-lane { position: absolute; left: 0; right: 0; border-bottom: 1px dashed #f0f0f0; }
+.tl-tethers { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.tl-tethers line { stroke: #bfbfbf; stroke-width: .75; }
+
+/* Pills: outer = edge, inner .fill = fill, both clipped to the same shape */
+.seg {
+  --bw: 1.5px;
+  position: absolute;
+  background: linear-gradient(180deg, var(--b1) 0 36%, var(--b2) 64% 100%);
+  transition: opacity .2s;
+}
+.seg > .fill {
+  position: absolute; inset: var(--bw);
+  background: linear-gradient(180deg, var(--t1) 0 36%, var(--t2) 64% 100%);
+}
+.seg > .fill.hatched { background: none; overflow: hidden; }
+.seg .half { position: absolute; left: 0; width: 100%; height: 50%; display: block; }
+.seg .half.top { top: 0; }
+.seg .half.bottom { bottom: 0; }
+.seg .divider { position: absolute; left: 0; right: 0; top: 50%; height: 1.5px; transform: translateY(-50%); }
+.seg.dim { opacity: .45; }
+
+.seg.solo, .seg.solo > .fill { border-radius: 22px; }
+.seg.first, .seg.first > .fill { border-radius: 22px 0 0 22px; }
+.seg.last, .seg.last > .fill { border-radius: 0 22px 22px 0; }
+.seg.first { clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%); }
+.seg.first > .fill { clip-path: polygon(0 0, calc(100% - .55px) 0, calc(100% - 6.55px) 100%, 0 100%); }
+.seg.last { clip-path: polygon(7px 0, 100% 0, 100% 100%, 0 100%); }
+.seg.last > .fill { clip-path: polygon(6.55px 0, 100% 0, 100% 100%, .55px 100%); }
+.seg.mid { clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%); }
+.seg.mid > .fill { clip-path: polygon(6.55px 0, calc(100% - .55px) 0, calc(100% - 6.55px) 100%, .55px 100%); }
+
+/* Event dots */
+.ev {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%; border: 2px solid transparent; box-sizing: border-box; z-index: 2;
+  background: linear-gradient(180deg, var(--t1) 0 36%, var(--t2) 64% 100%) padding-box, linear-gradient(180deg, var(--b1) 0 36%, var(--b2) 64% 100%) border-box;
+}
+.ev.hatched { border: 0; overflow: hidden; }
+.ev .ev-fill { position: absolute; inset: 1.5px; width: calc(100% - 3px); height: calc(100% - 3px); border-radius: 50%; }
+
+/* Sidecar band */
+.band {
+  position: absolute; border-radius: 7px; border: 1.5px solid transparent; box-sizing: border-box;
+  background: linear-gradient(var(--t1), var(--t1)) padding-box, linear-gradient(var(--b1), var(--b1)) border-box;
+}
+.band.hatched { border: 0; overflow: hidden; }
+.band .band-fill { position: absolute; inset: 1.5px; width: calc(100% - 3px); height: calc(100% - 3px); border-radius: 6px; }
+
+/* Floating events */
+.fev { position: absolute; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #8c8c8c; background: #fff; box-sizing: border-box; }
+
+/* Titles */
+.tl-label { position: absolute; font-size: 12px; line-height: 16px; white-space: nowrap; pointer-events: none; z-index: 3; }
+.tl-label.float { color: #262626; }
+.tl-label.in, .tl-label.clip { color: #1d1150; overflow: hidden; text-overflow: ellipsis; }
+.tl-label.chip { background: #fff; color: #141414; border-radius: 3px; padding: 0 4px; margin-left: -4px; }
+.tl-label.chip.inv { background: #141414; color: #fff; }
