@@ -12,6 +12,8 @@ This is a from-scratch rebuild of the 2020 Next.js prototype. See the design doc
 
 ## Scripts
 
+Needs Node 22.22 or newer (or Node 24.15+), because the test tools require it.
+
 ```sh
 npm install
 npm run dev        # local dev server
