@@ -1,57 +1,15 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { currentMonth, formatMonth } from '../data/months';
 import type { Role, TimelineDoc } from '../data/schema';
 import { HatchDefs } from './hatches';
-import { fitPxPerMonth, GEOMETRY as G, layoutTimeline } from './layout';
+import { useLabelMeasurer } from './labelMeasure';
+import { fitPxPerMonth, GEOMETRY, layoutTimeline } from './layout';
 import { EventDot, Pill, SidecarBand } from './Pill';
 import { pillSwatches, swatchForThread, UNTHREADED } from './palettes';
 import './timeline.css';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-export const fmtMonth = (ym: string) => (ym === 'now' ? 'Present' : `${MONTHS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`);
-const roleLabel = (r: Role) =>
-  `${r.title || 'Untitled role'}${r.company ? ` · ${r.company}` : ''} · ${fmtMonth(r.start)} – ${fmtMonth(r.end)}`;
-
-let canvas: HTMLCanvasElement | null = null;
-const widths = new Map<string, number>();
-const LABEL_FONT = '12px Lato, system-ui, sans-serif';
-/**
- * Width of a title in the label font. Measured with the font the page will
- * actually draw; the cache is cleared once web fonts finish loading. A small
- * margin covers sub-pixel differences between canvas and DOM text.
- */
-export function measureLabel(text: string): number {
-  const hit = widths.get(text);
-  if (hit !== undefined) return hit;
-  canvas ??= document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  let w = text.length * 7;
-  if (ctx) {
-    ctx.font = LABEL_FONT;
-    w = Math.ceil(ctx.measureText(text).width * 1.03) + 2;
-  }
-  widths.set(text, w);
-  return w;
-}
-
-/** Re-render once fonts are ready so titles are measured in the real font. */
-function useFontsReady() {
-  const [ready, setReady] = useState(() => typeof document === 'undefined' || !document.fonts || document.fonts.status === 'loaded');
-  useLayoutEffect(() => {
-    if (ready || !document.fonts) return;
-    let live = true;
-    document.fonts.ready.then(() => {
-      if (!live) return;
-      widths.clear();
-      setReady(true);
-    });
-    return () => {
-      live = false;
-    };
-  }, [ready]);
-  return ready;
-}
-
-export const currentMonth = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const roleLabel = (role: Role) =>
+  `${role.title || 'Untitled role'}${role.company ? ` · ${role.company}` : ''} · ${formatMonth(role.start)} – ${formatMonth(role.end)}`;
 
 export interface TimelineProps {
   doc: TimelineDoc;
@@ -76,13 +34,12 @@ export function Timeline({ doc, zoom = 1, now = currentMonth() }: TimelineProps)
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const fontsReady = useFontsReady();
+  const measure = useLabelMeasurer();
   const fit = viewW ? fitPxPerMonth(doc, now, viewW) : 0;
   const pxPerMonth = Math.min(MAX_PX_PER_MONTH, Math.max(MIN_PX_PER_MONTH, fit) * zoom);
   const layout = useMemo(
-    () => layoutTimeline(doc, { pxPerMonth, showTitles, measure: measureLabel, now }),
-    // fontsReady: re-measure titles once the real font has loaded.
-    [doc, pxPerMonth, showTitles, now, fontsReady],
+    () => layoutTimeline(doc, { pxPerMonth, showTitles, measure, now }),
+    [doc, pxPerMonth, showTitles, now, measure],
   );
 
   // Open at the present. While the person hasn't scrolled away, stay pinned
@@ -112,69 +69,84 @@ export function Timeline({ doc, zoom = 1, now = currentMonth() }: TimelineProps)
     <div className="tl-scroll" ref={scroller} onScroll={onScroll}>
       <HatchDefs />
       {viewW > 0 && (
-      <div className="tl-stage" style={{ width: layout.width, height: layout.height }}>
-        {layout.years.map(({ year, x }) => (
-          <span key={year} className="tl-grid" style={{ left: x }} />
-        ))}
-        {layout.years
-          .filter(({ year }) => year % yearStep === 0)
-          .map(({ year, x }) => (
-            <span key={year} className="tl-year" style={{ left: x }}>
-              {year}
-            </span>
+        <div className="tl-stage" style={{ width: layout.width, height: layout.height }}>
+          {layout.years.map(({ year, x }) => (
+            <span key={year} className="tl-grid" style={{ left: x }} />
+          ))}
+          {layout.years
+            .filter(({ year }) => year % yearStep === 0)
+            .map(({ year, x }) => (
+              <span key={year} className="tl-year" style={{ left: x }}>
+                {year}
+              </span>
+            ))}
+
+          {layout.floatLaneRows > 0 && (
+            <span
+              className="tl-lane"
+              style={{ top: layout.floatLaneTop, height: layout.floatLaneRows * GEOMETRY.floatLaneH }}
+            />
+          )}
+
+          <svg className="tl-tethers" width={layout.width} height={layout.height} aria-hidden="true">
+            {[...layout.segments.map((s) => s.label), ...layout.sidecars.map((s) => s.label)].map((l, i) =>
+              l?.tether ? <line key={i} x1={l.tether.x1} y1={l.tether.y1} x2={l.tether.x2} y2={l.tether.y2} /> : null,
+            )}
+          </svg>
+
+          {layout.segments.map((s) => {
+            const lead = s.kind === 'last' || s.kind === 'mid' ? GEOMETRY.slant : 0;
+            const sw = swatchesOf(s.role);
+            return (
+              <Pill
+                key={s.role.id}
+                kind={s.kind}
+                swatches={sw}
+                split={s.role.threads.length > 1}
+                label={roleLabel(s.role)}
+                style={{ left: s.left - lead, width: s.right - s.left + lead, top: s.y, height: GEOMETRY.pillH }}
+              />
+            );
+          })}
+
+          {layout.sidecars.map((c) => (
+            <SidecarBand
+              key={c.role.id}
+              swatch={c.role.threads[0] ? swatchForThread(doc, c.role.threads[0]) : UNTHREADED}
+              label={`${roleLabel(c.role)} · alongside`}
+              style={{ left: c.left, width: c.right - c.left, top: c.y, height: GEOMETRY.sidecarH }}
+            />
           ))}
 
-        {layout.floatLaneRows > 0 && (
-          <span className="tl-lane" style={{ top: layout.floatLaneTop, height: layout.floatLaneRows * G.floatLaneH }} />
-        )}
-
-        <svg className="tl-tethers" width={layout.width} height={layout.height} aria-hidden="true">
-          {[...layout.segments.map((s) => s.label), ...layout.sidecars.map((s) => s.label)].map((l, i) =>
-            l?.tether ? <line key={i} x1={l.tether.x1} y1={l.tether.y1} x2={l.tether.x2} y2={l.tether.y2} /> : null,
-          )}
-        </svg>
-
-        {layout.segments.map((s) => {
-          const lead = s.kind === 'last' || s.kind === 'mid' ? G.slant : 0;
-          const sw = swatchesOf(s.role);
-          return (
-            <Pill
-              key={s.role.id}
-              kind={s.kind}
-              swatches={sw}
-              split={s.role.threads.length > 1}
-              label={roleLabel(s.role)}
-              style={{ left: s.left - lead, width: s.right - s.left + lead, top: s.y, height: G.pillH }}
+          {layout.events.map((e) => (
+            <EventDot
+              key={e.event.id}
+              swatches={swatchesOf(e.role)}
+              label={`${e.event.title} · ${formatMonth(e.event.date)} · during ${e.role.title || 'role'}`}
+              style={{ left: e.x, top: e.y }}
             />
-          );
-        })}
+          ))}
 
-        {layout.sidecars.map((c) => (
-          <SidecarBand
-            key={c.role.id}
-            swatch={c.role.threads[0] ? swatchForThread(doc, c.role.threads[0]) : UNTHREADED}
-            label={`${roleLabel(c.role)} · alongside`}
-            style={{ left: c.left, width: c.right - c.left, top: c.y, height: G.sidecarH }}
-          />
-        ))}
+          {layout.floating.map((f) => (
+            <span
+              key={f.event.id}
+              className="fev"
+              role="img"
+              aria-label={`${f.event.title} · ${formatMonth(f.event.date)}`}
+              title={`${f.event.title} · ${formatMonth(f.event.date)}`}
+              style={{ left: f.x, top: f.y }}
+            />
+          ))}
 
-        {layout.events.map((e) => (
-          <EventDot
-            key={e.event.id}
-            swatches={swatchesOf(e.role)}
-            label={`${e.event.title} · ${fmtMonth(e.event.date)} · during ${e.role.title || 'role'}`}
-            style={{ left: e.x, top: e.y }}
-          />
-        ))}
-
-        {layout.floating.map((f) => (
-          <span key={f.event.id} className="fev" role="img" aria-label={`${f.event.title} · ${fmtMonth(f.event.date)}`} title={`${f.event.title} · ${fmtMonth(f.event.date)}`} style={{ left: f.x, top: f.y }} />
-        ))}
-
-        {[...layout.segments.map((s) => ({ l: s.label, mono: swatchesOf(s.role)[0].kind === 'hatch', inv: isInverted(swatchesOf(s.role)[0]) })),
-          ...layout.sidecars.map((s) => ({ l: s.label, mono: false, inv: false })),
-          ...layout.floating.map((f) => ({ l: f.label, mono: false, inv: false }))]
-          .map(({ l, mono, inv }, i) =>
+          {[
+            ...layout.segments.map((s) => ({
+              l: s.label,
+              mono: swatchesOf(s.role)[0].kind === 'hatch',
+              inv: isInverted(swatchesOf(s.role)[0]),
+            })),
+            ...layout.sidecars.map((s) => ({ l: s.label, mono: false, inv: false })),
+            ...layout.floating.map((f) => ({ l: f.label, mono: false, inv: false })),
+          ].map(({ l, mono, inv }, i) =>
             l ? (
               <span
                 key={i}
@@ -186,7 +158,7 @@ export function Timeline({ doc, zoom = 1, now = currentMonth() }: TimelineProps)
               </span>
             ) : null,
           )}
-      </div>
+        </div>
       )}
     </div>
   );

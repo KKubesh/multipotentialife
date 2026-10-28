@@ -6,7 +6,17 @@ import { reducer } from './reducer';
 describe('backup files', () => {
   it('round-trips a timeline through a backup file', () => {
     let doc = emptyDoc();
-    doc = reducer(doc, { type: 'addRole', role: { title: 'Trail Guide', company: 'Wilderness Inquiry', start: '2014-09', end: '2015-07', threads: ['coaching'], details: ['Guided canoe trips'] } });
+    doc = reducer(doc, {
+      type: 'addRole',
+      role: {
+        title: 'Trail Guide',
+        company: 'Wilderness Inquiry',
+        start: '2014-09',
+        end: '2015-07',
+        threads: ['coaching'],
+        details: ['Guided canoe trips'],
+      },
+    });
     doc = reducer(doc, { type: 'updateSettings', patch: { palette: 'mono' } });
     const text = JSON.stringify(buildBackup(doc), null, 2);
     const res = parseBackupText(text);

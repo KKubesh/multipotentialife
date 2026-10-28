@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { downloadBackup, readBackupFile } from '../data/backup';
 import { emptyDoc } from '../data/defaults';
 import type { TimelineDoc } from '../data/schema';
-import { useTimeline } from '../data/store';
+import { useTimeline } from '../data/timelineContext';
+import { PdfButton } from '../import/PdfButton';
 
 /**
  * Temporary screen for this build step: shows what's stored on the device and
@@ -17,9 +18,15 @@ const SAVE_LABEL = {
 } as const;
 
 const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  new Date(iso).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 
-export function DataPanel() {
+export function DataPanel({ onImport }: { onImport: (file: File) => void }) {
   const { doc, dispatch, loaded, saveStatus } = useTimeline();
   const fileInput = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<{ doc: TimelineDoc; warnings: string[]; name: string } | null>(null);
@@ -99,17 +106,25 @@ export function DataPanel() {
           <p className="empty">No roles yet.</p>
         )}
         <div className="row">
-          <button className="btn" onClick={() => dispatch({ type: 'addRole', role: { title: 'Sample role', company: 'Test Co.' } })}>
-            + Add sample role
-          </button>
+          <PdfButton className="btn" onFile={onImport}>
+            Import LinkedIn PDF
+          </PdfButton>
           <span className="sp" />
           {confirmClear ? (
             <>
               <span className="muted">Clear everything?</span>
-              <button className="btn danger" onClick={() => { dispatch({ type: 'replace', doc: emptyDoc() }); setConfirmClear(false); }}>
+              <button
+                className="btn danger"
+                onClick={() => {
+                  dispatch({ type: 'replace', doc: emptyDoc() });
+                  setConfirmClear(false);
+                }}
+              >
                 Clear
               </button>
-              <button className="btn" onClick={() => setConfirmClear(false)}>Cancel</button>
+              <button className="btn" onClick={() => setConfirmClear(false)}>
+                Cancel
+              </button>
             </>
           ) : (
             <button className="btn link-danger" onClick={() => setConfirmClear(true)} disabled={!doc.roles.length}>
@@ -125,13 +140,25 @@ export function DataPanel() {
           Your timeline lives only in this browser. Download a backup to keep a copy or move it to another device.
         </p>
         <div className="row">
-          <button className="btn pri" onClick={() => downloadBackup(doc)}>Download backup</button>
-          <button className="btn" onClick={() => fileInput.current?.click()}>Restore from backup</button>
+          <button className="btn pri" onClick={() => downloadBackup(doc)}>
+            Download backup
+          </button>
+          <button className="btn" onClick={() => fileInput.current?.click()}>
+            Restore from backup
+          </button>
           <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={onFile} />
         </div>
 
-        {error && <div className="note error" role="alert">{error}</div>}
-        {notice && <div className="note ok" role="status">{notice}</div>}
+        {error && (
+          <div className="note error" role="alert">
+            {error}
+          </div>
+        )}
+        {notice && (
+          <div className="note ok" role="status">
+            {notice}
+          </div>
+        )}
 
         {pending && (
           <div className="note confirm">
@@ -147,8 +174,12 @@ export function DataPanel() {
               </ul>
             )}
             <div className="row">
-              <button className="btn pri" onClick={confirmRestore}>Restore</button>
-              <button className="btn" onClick={() => setPending(null)}>Cancel</button>
+              <button className="btn pri" onClick={confirmRestore}>
+                Restore
+              </button>
+              <button className="btn" onClick={() => setPending(null)}>
+                Cancel
+              </button>
             </div>
           </div>
         )}
@@ -156,10 +187,14 @@ export function DataPanel() {
 
       <p className="muted support">
         Multipotentialife is free and runs entirely on your device. If you enjoy it, you can{' '}
-        <a href="https://buymeacoffee.com/kkubesh" target="_blank" rel="noopener noreferrer">buy me a coffee &#9749;</a>. The code is
-        open on{' '}
-        <a href="https://github.com/KKubesh/multipotentialife" target="_blank" rel="noopener noreferrer">GitHub</a>, and feedback is
-        welcome.
+        <a href="https://buymeacoffee.com/kkubesh" target="_blank" rel="noopener noreferrer">
+          buy me a coffee &#9749;
+        </a>
+        . The code is open on{' '}
+        <a href="https://github.com/KKubesh/multipotentialife" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+        , and feedback is welcome.
       </p>
     </main>
   );

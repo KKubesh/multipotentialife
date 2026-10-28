@@ -53,17 +53,31 @@ export function Pill({ kind, swatches, split, dim, style, label }: PillProps) {
       title={label}
       style={{ ...style, ...vars({ '--b1': edgeOf(a), '--b2': edgeOf(b) }) }}
     >
-      <Fill top={a} bottom={b} divider={split && (a !== b)} />
+      <Fill top={a} bottom={b} divider={split && a !== b} />
     </div>
   );
 }
 
 /** A moment on a role: a small circle in the role's colors (or its first hatch). */
-export function EventDot({ swatches, style, label }: { swatches: [Swatch, Swatch]; style: CSSProperties; label: string }) {
+export function EventDot({
+  swatches,
+  style,
+  label,
+}: {
+  swatches: [Swatch, Swatch];
+  style: CSSProperties;
+  label: string;
+}) {
   const [a, b] = swatches;
   if (a.kind === 'hatch') {
     return (
-      <span className="ev hatched" role="img" aria-label={label} title={label} style={{ ...style, background: rimOf(a) }}>
+      <span
+        className="ev hatched"
+        role="img"
+        aria-label={label}
+        title={label}
+        style={{ ...style, background: rimOf(a) }}
+      >
         <HatchFill className="ev-fill" hatch={a.hatch} inverted={a.inverted} />
       </span>
     );
@@ -89,5 +103,13 @@ export function SidecarBand({ swatch, style, label }: { swatch: Swatch; style: C
       </span>
     );
   }
-  return <span className="band" role="img" aria-label={label} title={label} style={{ ...style, ...vars({ '--t1': swatch.fill, '--b1': swatch.edge }) }} />;
+  return (
+    <span
+      className="band"
+      role="img"
+      aria-label={label}
+      title={label}
+      style={{ ...style, ...vars({ '--t1': swatch.fill, '--b1': swatch.edge }) }}
+    />
+  );
 }

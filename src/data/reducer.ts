@@ -1,4 +1,5 @@
 import { newId } from './defaults';
+import { currentMonth } from './months';
 import type { FloatingEvent, Profile, Role, Settings, TimelineDoc } from './schema';
 
 /** Every change to the timeline goes through one of these actions. */
@@ -32,12 +33,12 @@ export function blankRole(partial: Partial<Role> = {}): Role {
   };
 }
 
-export function currentMonth(d: Date = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
 const slug = (name: string) =>
-  name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'thread';
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'thread';
 
 export function reducer(doc: TimelineDoc, action: Action): TimelineDoc {
   const next = apply(doc, action);
@@ -87,7 +88,9 @@ function apply(doc: TimelineDoc, a: Action): TimelineDoc {
       return {
         ...doc,
         threads: doc.threads.filter((t) => t.id !== a.id).map((t, i) => ({ ...t, order: i + 1 })),
-        roles: doc.roles.map((r) => (r.threads.includes(a.id) ? { ...r, threads: r.threads.filter((t) => t !== a.id) } : r)),
+        roles: doc.roles.map((r) =>
+          r.threads.includes(a.id) ? { ...r, threads: r.threads.filter((t) => t !== a.id) } : r,
+        ),
         floatingEvents: doc.floatingEvents.map((e) =>
           e.threads.includes(a.id) ? { ...e, threads: e.threads.filter((t) => t !== a.id) } : e,
         ),
