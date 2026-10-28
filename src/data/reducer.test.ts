@@ -26,7 +26,12 @@ describe('reducer', () => {
     doc = reducer(doc, { type: 'addFloatingEvent', event: { threads: ['design'] } });
     doc = reducer(doc, { type: 'updateSettings', patch: { threadSwatches: { design: 2 } } });
     doc = reducer(doc, { type: 'removeThread', id: 'design' });
-    expect(doc.threads.map((t) => [t.id, t.order])).toEqual([['software', 1], ['community', 2], ['coaching', 3], ['education', 4]]);
+    expect(doc.threads.map((t) => [t.id, t.order])).toEqual([
+      ['software', 1],
+      ['community', 2],
+      ['coaching', 3],
+      ['education', 4],
+    ]);
     expect(doc.roles[0].threads).toEqual(['software']);
     expect(doc.floatingEvents[0].threads).toEqual([]);
     expect(doc.settings.threadSwatches).toEqual({});

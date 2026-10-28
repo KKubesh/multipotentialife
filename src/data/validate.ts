@@ -22,9 +22,7 @@ import {
  * from a newer version of the app than this one.
  */
 
-export type ParseResult =
-  | { ok: true; doc: TimelineDoc; warnings: string[] }
-  | { ok: false; error: string };
+export type ParseResult = { ok: true; doc: TimelineDoc; warnings: string[] } | { ok: false; error: string };
 
 const YM = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -96,9 +94,10 @@ export function parseDoc(input: unknown): ParseResult {
 
   const doc: TimelineDoc = {
     schemaVersion: SCHEMA_VERSION,
-    updatedAt: typeof data.updatedAt === 'string' && !Number.isNaN(Date.parse(data.updatedAt))
-      ? data.updatedAt
-      : new Date().toISOString(),
+    updatedAt:
+      typeof data.updatedAt === 'string' && !Number.isNaN(Date.parse(data.updatedAt))
+        ? data.updatedAt
+        : new Date().toISOString(),
     profile: readProfile(data.profile),
     settings: readSettings(data.settings, threadIds),
     threads,
@@ -163,7 +162,10 @@ function readRole(
     end,
     threads: keepThreads(r.threads),
     details: Array.isArray(r.details)
-      ? r.details.filter((d): d is string => typeof d === 'string').map((d) => d.trim()).filter(Boolean)
+      ? r.details
+          .filter((d): d is string => typeof d === 'string')
+          .map((d) => d.trim())
+          .filter(Boolean)
       : [],
     events,
     chain: typeof r.chain === 'string' && r.chain ? r.chain : null,

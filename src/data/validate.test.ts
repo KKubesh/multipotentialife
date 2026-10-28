@@ -4,8 +4,17 @@ import { SCHEMA_VERSION } from './schema';
 import { isYearMonth, parseDoc } from './validate';
 
 const role = (over: Record<string, unknown> = {}) => ({
-  id: 'r1', title: 'UI Engineer', company: 'Acme', start: '2019-04', end: '2021-03',
-  threads: ['software', 'design'], details: ['Built things'], events: [], chain: null, overlapStyle: null, ...over,
+  id: 'r1',
+  title: 'UI Engineer',
+  company: 'Acme',
+  start: '2019-04',
+  end: '2021-03',
+  threads: ['software', 'design'],
+  details: ['Built things'],
+  events: [],
+  chain: null,
+  overlapStyle: null,
+  ...over,
 });
 
 describe('parseDoc', () => {
@@ -30,7 +39,11 @@ describe('parseDoc', () => {
   });
 
   it('unwraps backup files', () => {
-    const res = parseDoc({ kind: 'multipotentialife-backup', exportedAt: '2026-10-27T00:00:00Z', doc: { ...emptyDoc(), roles: [role()] } });
+    const res = parseDoc({
+      kind: 'multipotentialife-backup',
+      exportedAt: '2026-10-27T00:00:00Z',
+      doc: { ...emptyDoc(), roles: [role()] },
+    });
     expect(res.ok && res.doc.roles.length).toBe(1);
   });
 
@@ -73,7 +86,10 @@ describe('parseDoc', () => {
   });
 
   it('keeps only swatch overrides for known threads', () => {
-    const res = parseDoc({ roles: [], settings: { palette: 'mono', threadSwatches: { design: 3, ghost: 1, software: -1 } } });
+    const res = parseDoc({
+      roles: [],
+      settings: { palette: 'mono', threadSwatches: { design: 3, ghost: 1, software: -1 } },
+    });
     expect(res.ok && res.doc.settings.threadSwatches).toEqual({ design: 3 });
   });
 });

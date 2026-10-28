@@ -1,4 +1,5 @@
 import { newId } from '../data/defaults';
+import { monthIndex } from '../data/months';
 import type { Profile, Role, RoleEnd, YearMonth } from '../data/schema';
 import type { LinkedInProfile, PdfDate } from './linkedin';
 
@@ -33,22 +34,23 @@ export interface ImportResult {
 const precision = (d: PdfDate | null | 'present'): 'month' | 'year' | 'missing' =>
   d == null ? 'missing' : d === 'present' || d.length === 7 ? 'month' : 'year';
 
-const idx = (ym: YearMonth) => Number(ym.slice(0, 4)) * 12 + Number(ym.slice(5, 7)) - 1;
-
 /**
  * Turns LinkedIn's dates into timeline months. A year-only start becomes
  * January. A year-only end becomes January of that year (so "1983 – 1987"
  * hands over cleanly to a role starting in 1987), or December when the role
  * starts and ends in the same year.
  */
-export function toMonths(start: PdfDate | null, end: PdfDate | 'present' | null): { start: YearMonth | null; end: RoleEnd | null } {
+export function toMonths(
+  start: PdfDate | null,
+  end: PdfDate | 'present' | null,
+): { start: YearMonth | null; end: RoleEnd | null } {
   const s = start == null ? null : start.length === 4 ? `${start}-01` : start;
   let e: RoleEnd | null;
   if (end == null) e = null;
   else if (end === 'present') e = 'now';
   else if (end.length === 7) e = end;
   else e = s && s.slice(0, 4) === end ? `${end}-12` : `${end}-01`;
-  if (s && e && e !== 'now' && idx(e) < idx(s)) e = s;
+  if (s && e && e !== 'now' && monthIndex(e) < monthIndex(s)) e = s;
   return { start: s, end: e };
 }
 
@@ -74,14 +76,16 @@ export function profileToDrafts(p: LinkedInProfile, makeId: () => string = newId
 
     // Chain roles that follow one another at the same company (a promotion, a new
     // title): each role links to an earlier one that ends within 2 months of its start.
-    const dated = roles.filter((r) => r.start && r.end).sort((a, b) => idx(a.start!) - idx(b.start!));
+    const dated = roles.filter((r) => r.start && r.end).sort((a, b) => monthIndex(a.start!) - monthIndex(b.start!));
     const FAR = 1e9;
-    const sIdx = (r: ImportDraft) => idx(r.start!);
-    const eIdx = (r: ImportDraft) => (r.end === 'now' ? FAR : idx(r.end as YearMonth));
+    const sIdx = (r: ImportDraft) => monthIndex(r.start!);
+    const eIdx = (r: ImportDraft) => (r.end === 'now' ? FAR : monthIndex(r.end as YearMonth));
     const next = new Map<ImportDraft, ImportDraft>();
     const prev = new Map<ImportDraft, ImportDraft>();
     for (const r of dated) {
-      const before = dated.filter((o) => o !== r && !next.has(o) && sIdx(o) < sIdx(r) && Math.abs(sIdx(r) - eIdx(o)) <= CHAIN_GAP);
+      const before = dated.filter(
+        (o) => o !== r && !next.has(o) && sIdx(o) < sIdx(r) && Math.abs(sIdx(r) - eIdx(o)) <= CHAIN_GAP,
+      );
       const pick = before.sort((a, b) => Math.abs(sIdx(r) - eIdx(a)) - Math.abs(sIdx(r) - eIdx(b)))[0];
       if (pick) {
         next.set(pick, r);
@@ -132,7 +136,11 @@ export function profileToDrafts(p: LinkedInProfile, makeId: () => string = newId
 }
 
 /** A reviewed draft becomes a role. Threads are chosen in the review; none are pre-picked. */
-export function draftToRole(d: ImportDraft & { start: YearMonth; end: RoleEnd }, threads: string[], overlapStyle: Role['overlapStyle'] = null): Role {
+export function draftToRole(
+  d: ImportDraft & { start: YearMonth; end: RoleEnd },
+  threads: string[],
+  overlapStyle: Role['overlapStyle'] = null,
+): Role {
   return {
     id: d.key,
     title: d.title.trim(),

@@ -26,7 +26,10 @@ describe.skipIf(!files.length)('real LinkedIn PDFs', () => {
       expect(drafts.length).toBeGreaterThan(0);
 
       const flag = (p: string) => (p === 'month' ? ' ' : p === 'year' ? '~' : '?');
-      const out = [`${profile.name} · ${profile.headline}`, `${profile.linkedin || '(no link)'} · ${drafts.length} roles`];
+      const out = [
+        `${profile.name} · ${profile.headline}`,
+        `${profile.linkedin || '(no link)'} · ${drafts.length} roles`,
+      ];
       for (const d of drafts) {
         out.push(
           `${(d.start ?? '?').padEnd(7)}${flag(d.startPrecision)} – ${(d.end ?? '?').padEnd(7)}${flag(d.endPrecision)} ${d.kind === 'education' ? '🎓 ' : ''}${d.title} @ ${d.company}` +

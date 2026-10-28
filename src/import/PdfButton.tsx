@@ -1,7 +1,15 @@
 import { useRef, type ReactNode } from 'react';
 
 /** A button that opens the file picker for a PDF. */
-export function PdfButton({ onFile, className, children }: { onFile: (file: File) => void; className?: string; children: ReactNode }) {
+export function PdfButton({
+  onFile,
+  className,
+  children,
+}: {
+  onFile: (file: File) => void;
+  className?: string;
+  children: ReactNode;
+}) {
   const input = useRef<HTMLInputElement>(null);
   return (
     <>

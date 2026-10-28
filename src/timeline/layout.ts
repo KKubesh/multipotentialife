@@ -1,3 +1,4 @@
+import { monthIndex } from '../data/months';
 import type { FloatingEvent, Role, RoleEvent, TimelineDoc, YearMonth } from '../data/schema';
 
 /**
@@ -121,311 +122,158 @@ export interface LayoutOptions {
   now: YearMonth;
 }
 
-export const monthIndex = (ym: YearMonth) => Number(ym.slice(0, 4)) * 12 + Number(ym.slice(5, 7)) - 1;
-
+/** Roles in a row at one company whose dates are this close share an edge. */
 const SNAP_MONTHS = 2;
-const sameCompany = (a: Role, b: Role) =>
-  a.company.trim().toLowerCase() !== '' && a.company.trim().toLowerCase() === b.company.trim().toLowerCase();
 
+const sameCompany = (a: Role, b: Role) => {
+  const company = a.company.trim().toLowerCase();
+  return company !== '' && company === b.company.trim().toLowerCase();
+};
+
+/** A role's time extent in month indexes; `end` is exclusive. */
 interface Span {
   role: Role;
-  s: number;
-  e: number;
+  start: number;
+  end: number;
 }
 
-/** Months shown for a document (January of the first year to a few months past the end). */
-export function timeRange(doc: Pick<TimelineDoc, 'roles' | 'floatingEvents'>, now: YearMonth) {
-  const nowIdx = monthIndex(now);
+type Doc = Pick<TimelineDoc, 'roles' | 'floatingEvents'>;
+
+/** Months shown for a document: January of the first year to a few months past the end. */
+export function timeRange(doc: Doc, now: YearMonth) {
+  const nowMonth = monthIndex(now);
   const starts = [...doc.roles.map((r) => monthIndex(r.start)), ...doc.floatingEvents.map((e) => monthIndex(e.date))];
   const ends = [
-    ...doc.roles.map((r) => Math.max((r.end === 'now' ? nowIdx : monthIndex(r.end)) + 1, monthIndex(r.start) + 1)),
+    ...doc.roles.map((r) => Math.max((r.end === 'now' ? nowMonth : monthIndex(r.end)) + 1, monthIndex(r.start) + 1)),
     ...doc.floatingEvents.map((e) => monthIndex(e.date) + 1),
-    nowIdx + 1,
+    nowMonth + 1,
   ];
-  const startIdx = starts.length ? Math.floor(Math.min(...starts) / 12) * 12 : Math.floor(nowIdx / 12) * 12;
-  return { startIdx, endIdx: Math.max(...ends) + 3 };
+  const firstMonth = Math.floor((starts.length ? Math.min(...starts) : nowMonth) / 12) * 12;
+  return { firstMonth, endMonth: Math.max(...ends) + 3 };
 }
 
 /** Pixels per month that fit the whole range in a given width. */
-export function fitPxPerMonth(doc: Pick<TimelineDoc, 'roles' | 'floatingEvents'>, now: YearMonth, width: number) {
-  const { startIdx, endIdx } = timeRange(doc, now);
-  return (width - 2 * GEOMETRY.padX) / Math.max(1, endIdx - startIdx);
+export function fitPxPerMonth(doc: Doc, now: YearMonth, width: number) {
+  const { firstMonth, endMonth } = timeRange(doc, now);
+  return (width - 2 * GEOMETRY.padX) / Math.max(1, endMonth - firstMonth);
 }
 
-export function layoutTimeline(doc: Pick<TimelineDoc, 'roles' | 'floatingEvents'>, opt: LayoutOptions): Layout {
-  const G = GEOMETRY;
-  const nowIdx = monthIndex(opt.now);
+/** What every step of the layout needs to know. */
+interface Context {
+  options: LayoutOptions;
+  pxPerMonth: number;
+  /** Left edge in px of a month. */
+  xOf: (month: number) => number;
+  /** Right limit for anything drawn. */
+  contentRight: number;
+}
+
+/** A unit (one role, or a chain) laid out relative to the top of its row. */
+interface PlannedUnit {
+  segments: Omit<LaidSegment, 'row' | 'y'>[];
+  sidecar: { span: Span; hostId: string; left: number; right: number; label: Label | null } | null;
+  /** Horizontal extent of everything the unit draws, labels included. */
+  footprintStart: number;
+  footprintEnd: number;
+  /** The footprint starts / ends at a pill edge (not a label or sidecar). */
+  startsAtPill: boolean;
+  endsAtPill: boolean;
+  /** Months from the first start to the last end, to place longer units first. */
+  duration: number;
+}
+
+export function layoutTimeline(doc: Doc, options: LayoutOptions): Layout {
+  const nowMonth = monthIndex(options.now);
   const spans: Span[] = doc.roles.map((role) => {
-    const s = monthIndex(role.start);
-    const e = (role.end === 'now' ? nowIdx : monthIndex(role.end)) + 1;
-    return { role, s, e: Math.max(e, s + 1) };
+    const start = monthIndex(role.start);
+    const end = (role.end === 'now' ? nowMonth : monthIndex(role.end)) + 1;
+    return { role, start, end: Math.max(end, start + 1) };
   });
 
-  const { startIdx, endIdx } = timeRange(doc, opt.now);
-  const ppm = opt.pxPerMonth;
-  const X = (m: number) => G.padX + (m - startIdx) * ppm;
-  const width = X(endIdx) + G.padX;
-  const maxX = width - G.padX;
+  const { firstMonth, endMonth } = timeRange(doc, options.now);
+  const { pxPerMonth } = options;
+  const xOf = (month: number) => GEOMETRY.padX + (month - firstMonth) * pxPerMonth;
+  const width = xOf(endMonth) + GEOMETRY.padX;
+  const context: Context = { options, pxPerMonth, xOf, contentRight: width - GEOMETRY.padX };
 
-  // Sidecars: a role marked "sidecar" rides under the same-company role it overlaps most.
-  // One sidecar per host; any extra side role gets its own row instead.
-  const sidecarOf = new Map<string, Span>(); // side role id -> host span
-  const hostsUsed = new Set<Span>();
-  for (const sp of [...spans].sort((a, b) => a.s - b.s)) {
-    if (sp.role.overlapStyle !== 'sidecar') continue;
-    let best: Span | null = null;
-    let bestOverlap = 0;
-    for (const other of spans) {
-      if (other === sp || other.role.overlapStyle === 'sidecar' || hostsUsed.has(other) || !sameCompany(sp.role, other.role)) continue;
-      const ov = Math.min(sp.e, other.e) - Math.max(sp.s, other.s);
-      if (ov > bestOverlap) {
-        best = other;
-        bestOverlap = ov;
-      }
-    }
-    if (best) {
-      sidecarOf.set(sp.role.id, best);
-      hostsUsed.add(best);
-    }
-  }
+  const sidecarHosts = assignSidecarHosts(spans);
+  const units = groupIntoUnits(spans, sidecarHosts);
+  const planned = units.map((unit) => planUnit(unit, spans, sidecarHosts, context));
 
-  // Units: chains (sorted by start) and single roles.
-  const chains = new Map<string, Span[]>();
-  const units: Span[][] = [];
-  for (const sp of spans) {
-    if (sidecarOf.has(sp.role.id)) continue;
-    if (sp.role.chain) {
-      const list = chains.get(sp.role.chain) ?? [];
-      list.push(sp);
-      chains.set(sp.role.chain, list);
-    } else units.push([sp]);
-  }
-  for (const list of chains.values()) units.push(list.sort((a, b) => a.s - b.s || a.e - b.e));
-
+  const lane = planFloatingLane(doc.floatingEvents, context);
+  const floatLaneTop = GEOMETRY.axisH;
+  const rowsTop = floatLaneTop + lane.rows * GEOMETRY.floatLaneH + (lane.rows ? 4 : 0);
   // With titles on, the row also holds sidecar labels under the pill, so it gets a little more air.
-  const rowH = (opt.showTitles ? G.labelBand + 6 : 0) + G.pillH + G.below;
-  const labelY = (top: number) => top + G.labelBand - 4; // baseline inside the label band
-  const fit = (title: string, avail: number): 'in' | 'clip' | 'float' => {
-    if (!title) return 'float';
-    if (opt.measure(title) <= avail) return 'in';
-    return opt.measure(title.slice(0, G.minChars) + '…') <= avail ? 'clip' : 'float';
-  };
+  const rowH = (options.showTitles ? GEOMETRY.labelBand + 6 : 0) + GEOMETRY.pillH + GEOMETRY.below;
 
-  // Lay out each unit relative to its row top (0); footprint = horizontal extent of everything it draws.
-  interface Planned {
-    segs: Omit<LaidSegment, 'row' | 'y'>[];
-    side: { span: Span; hostId: string; left: number; right: number; label: Label | null } | null;
-    fs: number;
-    fe: number;
-    /** Footprint starts / ends at a pill edge (not a label or sidecar). */
-    headPill: boolean;
-    tailPill: boolean;
-    len: number;
-  }
-  const planned: Planned[] = units.map((unit) => {
-    const n = unit.length;
-    const segs: Planned['segs'] = [];
-    let prevX1 = -Infinity;
-    let upCursor = -Infinity; // right end of the last "up" label in this unit
-    unit.forEach((sp, i) => {
-      const kind: SegKind = n === 1 ? 'solo' : i === 0 ? 'first' : i === n - 1 ? 'last' : 'mid';
-      let x0 = X(sp.s);
-      let x1 = X(sp.e);
-      if (i > 0 && Math.abs(x0 - prevX1) <= SNAP_MONTHS * ppm) x0 = prevX1; // handover snap
-      x0 = Math.max(x0, prevX1);
-      x1 = Math.max(x1, x0 + G.minPillW + G.gap);
-      prevX1 = x1;
-      const left = x0 + G.gap / 2;
-      const right = x1 - G.gap / 2;
-
-      let label: Label | null = null;
-      const title = sp.role.title.trim();
-      if (opt.showTitles && title) {
-        const padL = G.textPad + (kind === 'last' || kind === 'mid' ? G.slant : 0);
-        const padR = G.textPad + (kind === 'first' || kind === 'mid' ? G.slant : 0);
-        // Keep inside text clear of event dots.
-        const firstEvent = sp.role.events
-          .map((e) => eventX(monthIndex(e.date), left, right))
-          .sort((a, b) => a - b)[0];
-        const textRight = firstEvent !== undefined ? Math.min(right - padR, firstEvent - 6) : right - padR;
-        const avail = textRight - (left + padL);
-        const mode = fit(title, avail);
-        if (mode !== 'float') {
-          label = { text: title, mode, x: left + padL, y: G.labelBand + G.pillH / 2 + 4, width: avail, tether: null };
-        } else {
-          // Floating titles sit in the label band above the row. A title that can't be
-          // placed without touching another one is left off (it's still in the hover card).
-          const w = opt.measure(title);
-          if (kind === 'solo') {
-            if (right + G.labelGap + w <= maxX) label = floatRight(title, w, right);
-            else if (left - G.labelGap - w >= G.padX) label = floatLeft(title, w, left);
-          } else {
-            // Chains: titles run left to right in reading order and never overlap each other.
-            let lx = kind === 'last' ? right + G.labelGap : left + G.textPad;
-            lx = Math.max(lx, upCursor + G.labelGap);
-            if (lx + w > maxX) lx = maxX - w;
-            if (lx >= upCursor + G.labelGap && lx >= G.padX) {
-              upCursor = lx + w;
-              label =
-                kind === 'last' && lx >= right
-                  ? { text: title, mode: 'float', x: lx, y: labelY(0), width: w, tether: { x1: right - 4, y1: G.labelBand + 3, x2: lx - 3, y2: labelY(0) - 4 } }
-                  : { text: title, mode: 'float', x: lx, y: labelY(0), width: w, tether: { x1: Math.min(left + G.textPad, right - 4), y1: G.labelBand + 2, x2: Math.max(lx - 3, Math.min(left + G.textPad, right - 4)), y2: labelY(0) - 4 } };
-            }
-          }
-        }
-      }
-      segs.push({ role: sp.role, kind, x0, x1, left, right, label });
-
-      function floatRight(text: string, w: number, r: number): Label {
-        const lx = r + G.labelGap;
-        return { text, mode: 'float', x: lx, y: labelY(0), width: w, tether: { x1: r - 4, y1: G.labelBand + 3, x2: lx - 3, y2: labelY(0) - 4 } };
-      }
-      function floatLeft(text: string, w: number, l: number): Label {
-        const lx = l - G.labelGap - w;
-        return { text, mode: 'float', x: lx, y: labelY(0), width: w, tether: { x1: l + 4, y1: G.labelBand + 3, x2: lx + w + 3, y2: labelY(0) - 4 } };
-      }
-    });
-
-    // Sidecar under the host segment.
-    let side: Planned['side'] = null;
-    for (const [sideId, host] of sidecarOf) {
-      if (!unit.includes(host)) continue;
-      const sp = spans.find((x) => x.role.id === sideId)!;
-      const left = X(sp.s) + G.gap / 2;
-      const right = Math.max(X(sp.e) - G.gap / 2, left + G.minPillW);
-      let label: Label | null = null;
-      const title = sp.role.title.trim();
-      if (opt.showTitles && title) {
-        const w = opt.measure(title);
-        const by = G.labelBand + G.pillH + G.sidecarGap + G.sidecarH;
-        label = right + G.labelGap + w <= maxX
-          ? { text: title, mode: 'float', x: right + 6, y: by + 1, width: w, tether: null }
-          : { text: title, mode: 'float', x: left - 6 - w, y: by + 1, width: w, tether: null };
-      }
-      side = { span: sp, hostId: host.role.id, left, right, label };
-      break;
-    }
-
-    // Footprint: pills edge to edge; labels plus breathing room so text never touches a neighbour.
-    const pillStart = segs[0].x0;
-    const pillEnd = segs[segs.length - 1].x1;
-    const labels = [...segs.map((s) => s.label), side?.label ?? null].filter((l): l is Label => !!l && l.mode === 'float');
-    const sideEnd = side ? side.right + G.gap / 2 : -Infinity;
-    const sideStart = side ? side.left - G.gap / 2 : Infinity;
-    const labelStart = Math.min(...labels.map((l) => l.x - G.labelGap));
-    const labelEnd = Math.max(...labels.map((l) => l.x + l.width + G.labelGap));
-    const fs = Math.min(pillStart, sideStart, labelStart);
-    const fe = Math.max(pillEnd, sideEnd, labelEnd);
-    return {
-      segs,
-      side,
-      fs,
-      fe,
-      headPill: fs === pillStart,
-      tailPill: fe === pillEnd,
-      len: unit[n - 1].e - unit[0].s,
-    };
-  });
-
-  // Floating events lane (packed into as many sub-rows as their labels need).
-  const fevs = [...doc.floatingEvents].sort((a, b) => a.date.localeCompare(b.date));
-  const laneEnds: number[] = [];
-  const floatPlan = fevs.map((event) => {
-    const m = monthIndex(event.date);
-    const x = X(m) + ppm / 2 - G.eventD / 2;
-    const title = event.title.trim();
-    const w = opt.showTitles && title ? opt.measure(title) : 0;
-    const fs = x;
-    const fe = x + G.eventD + (w ? 6 + w : 0);
-    let lane = laneEnds.findIndex((end) => end + G.labelGap <= fs);
-    if (lane < 0) {
-      lane = laneEnds.length;
-      laneEnds.push(-Infinity);
-    }
-    laneEnds[lane] = fe;
-    return { event, x, lane, title, w };
-  });
-  const floatLaneTop = G.axisH;
-  const floatLaneRows = laneEnds.length;
-  const rowsTop = floatLaneTop + floatLaneRows * G.floatLaneH + (floatLaneRows ? 4 : 0);
-
-  // Greedy first-fit packing, longest first when two units start together.
-  // A one-month overlap between pills (one role ends the month the next starts)
-  // still shares the row: the earlier pill is trimmed to meet the later one.
-  planned.sort((a, b) => a.fs - b.fs || b.len - a.len);
-  const rows: { end: number; tailPill: boolean; last: Planned | null }[] = [];
-  const rowOf = planned.map((p) => {
-    let r = rows.findIndex((row) => {
-      if (row.end <= p.fs + 0.5) return true;
-      if (!row.tailPill || !p.headPill || !row.last) return false;
-      const overlap = row.end - p.fs;
-      const tail = row.last.segs[row.last.segs.length - 1];
-      return overlap <= ppm + 0.5 && p.fs - tail.x0 >= G.minPillW + G.gap;
-    });
-    if (r < 0) {
-      r = rows.length;
-      rows.push({ end: -Infinity, tailPill: true, last: null });
-    } else if (rows[r].end > p.fs + 0.5 && rows[r].last) {
-      const tail = rows[r].last!.segs[rows[r].last!.segs.length - 1];
-      const cut = tail.x1 - p.fs;
-      tail.x1 = p.fs;
-      tail.right = p.fs - G.gap / 2;
-      if (tail.label && tail.label.mode !== 'float') tail.label = { ...tail.label, width: tail.label.width - cut };
-    }
-    rows[r] = { end: p.fe, tailPill: p.tailPill, last: p };
-    return r;
-  });
-  const rowEnds = rows;
+  const { rowOf, rowCount } = packIntoRows(planned, pxPerMonth);
 
   const segments: LaidSegment[] = [];
   const events: LaidEvent[] = [];
   const sidecars: LaidSidecar[] = [];
-  planned.forEach((p, i) => {
-    const top = rowsTop + rowOf[i] * rowH;
-    const bandOffset = opt.showTitles ? 0 : -G.labelBand; // labels are relative to a band of 16
-    const shift = (l: Label | null): Label | null =>
-      l && {
-        ...l,
-        y: top + l.y + bandOffset,
-        tether: l.tether && { ...l.tether, y1: top + l.tether.y1 + bandOffset, y2: top + l.tether.y2 + bandOffset },
+  planned.forEach((unit, i) => {
+    const row = rowOf[i];
+    const rowTop = rowsTop + row * rowH;
+    // Labels were planned with a title band above the pill; without titles there is no band.
+    const bandOffset = options.showTitles ? 0 : -GEOMETRY.labelBand;
+    const place = (label: Label | null): Label | null =>
+      label && {
+        ...label,
+        y: rowTop + label.y + bandOffset,
+        tether: label.tether && {
+          ...label.tether,
+          y1: rowTop + label.tether.y1 + bandOffset,
+          y2: rowTop + label.tether.y2 + bandOffset,
+        },
       };
-    const pillY = top + (opt.showTitles ? G.labelBand : 0);
-    for (const s of p.segs) {
-      segments.push({ ...s, row: rowOf[i], y: pillY, label: shift(s.label) });
-      for (const ev of s.role.events) {
-        events.push({ role: s.role, event: ev, x: eventX(monthIndex(ev.date), s.left, s.right), y: pillY + (G.pillH - G.eventD) / 2 });
+    const pillTop = rowTop + (options.showTitles ? GEOMETRY.labelBand : 0);
+
+    for (const segment of unit.segments) {
+      segments.push({ ...segment, row, y: pillTop, label: place(segment.label) });
+      for (const event of segment.role.events) {
+        events.push({
+          role: segment.role,
+          event,
+          x: eventX(monthIndex(event.date), segment.left, segment.right, context),
+          y: pillTop + (GEOMETRY.pillH - GEOMETRY.eventD) / 2,
+        });
       }
     }
-    if (p.side) {
+    if (unit.sidecar) {
       sidecars.push({
-        role: p.side.span.role,
-        hostId: p.side.hostId,
-        left: p.side.left,
-        right: p.side.right,
-        y: pillY + G.pillH + G.sidecarGap,
-        label: shift(p.side.label),
+        role: unit.sidecar.span.role,
+        hostId: unit.sidecar.hostId,
+        left: unit.sidecar.left,
+        right: unit.sidecar.right,
+        y: pillTop + GEOMETRY.pillH + GEOMETRY.sidecarGap,
+        label: place(unit.sidecar.label),
       });
     }
   });
 
-  const floating: LaidFloating[] = floatPlan.map((f) => {
-    const y = floatLaneTop + f.lane * G.floatLaneH + (G.floatLaneH - G.eventD) / 2;
-    return {
-      event: f.event,
-      x: f.x,
-      y,
-      label: f.w ? { text: f.title, mode: 'float', x: f.x + G.eventD + 6, y: y + G.eventD - 2, width: f.w, tether: null } : null,
-    };
+  const floating: LaidFloating[] = lane.events.map((planned) => {
+    const y = floatLaneTop + planned.lane * GEOMETRY.floatLaneH + (GEOMETRY.floatLaneH - GEOMETRY.eventD) / 2;
+    const label: Label | null = planned.labelWidth
+      ? {
+          text: planned.title,
+          mode: 'float',
+          x: planned.x + GEOMETRY.eventD + 6,
+          y: y + GEOMETRY.eventD - 2,
+          width: planned.labelWidth,
+          tether: null,
+        }
+      : null;
+    return { event: planned.event, x: planned.x, y, label };
   });
 
   const years: Layout['years'] = [];
-  for (let m = startIdx; m <= endIdx; m += 12) years.push({ year: m / 12, x: X(m) });
+  for (let month = firstMonth; month <= endMonth; month += 12) years.push({ year: month / 12, x: xOf(month) });
 
   return {
     width,
-    height: rowsTop + rowEnds.length * rowH + G.bottomPad,
-    rowCount: rowEnds.length,
-    pxPerMonth: ppm,
+    height: rowsTop + rowCount * rowH + GEOMETRY.bottomPad,
+    rowCount,
+    pxPerMonth,
     years,
     rowsTop,
     rowH,
@@ -434,11 +282,258 @@ export function layoutTimeline(doc: Pick<TimelineDoc, 'roles' | 'floatingEvents'
     sidecars,
     floating,
     floatLaneTop,
-    floatLaneRows,
+    floatLaneRows: lane.rows,
   };
+}
 
-  function eventX(m: number, left: number, right: number) {
-    const raw = X(m) + ppm / 2 - G.eventD / 2;
-    return Math.max(left + 4, Math.min(right - G.eventD - 4, raw));
+/** Left edge of an event dot in its month, kept inside its pill. */
+function eventX(month: number, pillLeft: number, pillRight: number, context: Context) {
+  const centered = context.xOf(month) + context.pxPerMonth / 2 - GEOMETRY.eventD / 2;
+  return Math.max(pillLeft + 4, Math.min(pillRight - GEOMETRY.eventD - 4, centered));
+}
+
+/**
+ * A role marked "sidecar" rides under the same-company role it overlaps most.
+ * One sidecar per host; any extra side role gets its own row instead.
+ * Returns side role id → host span.
+ */
+function assignSidecarHosts(spans: Span[]): Map<string, Span> {
+  const hostOf = new Map<string, Span>();
+  const hostsUsed = new Set<Span>();
+  for (const side of [...spans].sort((a, b) => a.start - b.start)) {
+    if (side.role.overlapStyle !== 'sidecar') continue;
+    let best: Span | null = null;
+    let bestOverlap = 0;
+    for (const other of spans) {
+      const eligible =
+        other !== side &&
+        other.role.overlapStyle !== 'sidecar' &&
+        !hostsUsed.has(other) &&
+        sameCompany(side.role, other.role);
+      if (!eligible) continue;
+      const overlap = Math.min(side.end, other.end) - Math.max(side.start, other.start);
+      if (overlap > bestOverlap) {
+        best = other;
+        bestOverlap = overlap;
+      }
+    }
+    if (best) {
+      hostOf.set(side.role.id, best);
+      hostsUsed.add(best);
+    }
   }
+  return hostOf;
+}
+
+/** Units are what get placed in rows: a chain (sorted by start) or a single role. Sidecars ride with their host. */
+function groupIntoUnits(spans: Span[], sidecarHosts: Map<string, Span>): Span[][] {
+  const chains = new Map<string, Span[]>();
+  const units: Span[][] = [];
+  for (const span of spans) {
+    if (sidecarHosts.has(span.role.id)) continue;
+    if (span.role.chain) {
+      const chain = chains.get(span.role.chain) ?? [];
+      chain.push(span);
+      chains.set(span.role.chain, chain);
+    } else units.push([span]);
+  }
+  for (const chain of chains.values()) units.push(chain.sort((a, b) => a.start - b.start || a.end - b.end));
+  return units;
+}
+
+/** Baseline of a floating title, inside the label band above the pill (row top = 0). */
+const floatBaseline = GEOMETRY.labelBand - 4;
+
+function fitTitle(title: string, available: number, measure: LayoutOptions['measure']): Label['mode'] {
+  if (!title) return 'float';
+  if (measure(title) <= available) return 'in';
+  return measure(title.slice(0, GEOMETRY.minChars) + '…') <= available ? 'clip' : 'float';
+}
+
+/** A floating title with a short tether line back to the pill. */
+function floatingLabel(text: string, width: number, x: number, tether: { x1: number; y1: number; x2: number }): Label {
+  return { text, mode: 'float', x, y: floatBaseline, width, tether: { ...tether, y2: floatBaseline - 4 } };
+}
+
+/** Lays out one unit relative to its row top (0), including its titles and any sidecar. */
+function planUnit(unit: Span[], spans: Span[], sidecarHosts: Map<string, Span>, context: Context): PlannedUnit {
+  const { options, xOf, contentRight, pxPerMonth } = context;
+  const count = unit.length;
+  const segments: PlannedUnit['segments'] = [];
+  let previousEnd = -Infinity;
+  let lastChainLabelEnd = -Infinity; // right end of the last floating title in this chain
+
+  unit.forEach((span, i) => {
+    const kind: SegKind = count === 1 ? 'solo' : i === 0 ? 'first' : i === count - 1 ? 'last' : 'mid';
+    let x0 = xOf(span.start);
+    let x1 = xOf(span.end);
+    if (i > 0 && Math.abs(x0 - previousEnd) <= SNAP_MONTHS * pxPerMonth) x0 = previousEnd; // handover snap
+    x0 = Math.max(x0, previousEnd);
+    x1 = Math.max(x1, x0 + GEOMETRY.minPillW + GEOMETRY.gap);
+    previousEnd = x1;
+    const left = x0 + GEOMETRY.gap / 2;
+    const right = x1 - GEOMETRY.gap / 2;
+
+    let label: Label | null = null;
+    const title = span.role.title.trim();
+    if (options.showTitles && title) {
+      const padLeft = GEOMETRY.textPad + (kind === 'last' || kind === 'mid' ? GEOMETRY.slant : 0);
+      const padRight = GEOMETRY.textPad + (kind === 'first' || kind === 'mid' ? GEOMETRY.slant : 0);
+      // Keep inside text clear of event dots.
+      const firstEventX = span.role.events
+        .map((event) => eventX(monthIndex(event.date), left, right, context))
+        .sort((a, b) => a - b)[0];
+      const textRight = firstEventX !== undefined ? Math.min(right - padRight, firstEventX - 6) : right - padRight;
+      const available = textRight - (left + padLeft);
+      const mode = fitTitle(title, available, options.measure);
+
+      if (mode !== 'float') {
+        const baseline = GEOMETRY.labelBand + GEOMETRY.pillH / 2 + 4;
+        label = { text: title, mode, x: left + padLeft, y: baseline, width: available, tether: null };
+      } else {
+        // Floating titles sit in the label band above the row. A title that can't be
+        // placed without touching another one is left off (it's still in the hover card).
+        const titleWidth = options.measure(title);
+        if (kind === 'solo') {
+          if (right + GEOMETRY.labelGap + titleWidth <= contentRight) {
+            const x = right + GEOMETRY.labelGap;
+            label = floatingLabel(title, titleWidth, x, { x1: right - 4, y1: GEOMETRY.labelBand + 3, x2: x - 3 });
+          } else if (left - GEOMETRY.labelGap - titleWidth >= GEOMETRY.padX) {
+            const x = left - GEOMETRY.labelGap - titleWidth;
+            label = floatingLabel(title, titleWidth, x, {
+              x1: left + 4,
+              y1: GEOMETRY.labelBand + 3,
+              x2: x + titleWidth + 3,
+            });
+          }
+        } else {
+          // Chains: titles run left to right in reading order and never overlap each other.
+          let x = kind === 'last' ? right + GEOMETRY.labelGap : left + GEOMETRY.textPad;
+          x = Math.max(x, lastChainLabelEnd + GEOMETRY.labelGap);
+          if (x + titleWidth > contentRight) x = contentRight - titleWidth;
+          if (x >= lastChainLabelEnd + GEOMETRY.labelGap && x >= GEOMETRY.padX) {
+            lastChainLabelEnd = x + titleWidth;
+            if (kind === 'last' && x >= right) {
+              label = floatingLabel(title, titleWidth, x, { x1: right - 4, y1: GEOMETRY.labelBand + 3, x2: x - 3 });
+            } else {
+              const anchor = Math.min(left + GEOMETRY.textPad, right - 4);
+              label = floatingLabel(title, titleWidth, x, {
+                x1: anchor,
+                y1: GEOMETRY.labelBand + 2,
+                x2: Math.max(x - 3, anchor),
+              });
+            }
+          }
+        }
+      }
+    }
+    segments.push({ role: span.role, kind, x0, x1, left, right, label });
+  });
+
+  const sidecar = planSidecar(unit, spans, sidecarHosts, context);
+
+  // Footprint: pills edge to edge; labels plus breathing room so text never touches a neighbour.
+  const pillStart = segments[0].x0;
+  const pillEnd = segments[segments.length - 1].x1;
+  const floatingLabels = [...segments.map((segment) => segment.label), sidecar?.label ?? null].filter(
+    (label): label is Label => !!label && label.mode === 'float',
+  );
+  const sidecarStart = sidecar ? sidecar.left - GEOMETRY.gap / 2 : Infinity;
+  const sidecarEnd = sidecar ? sidecar.right + GEOMETRY.gap / 2 : -Infinity;
+  const labelsStart = Math.min(...floatingLabels.map((label) => label.x - GEOMETRY.labelGap));
+  const labelsEnd = Math.max(...floatingLabels.map((label) => label.x + label.width + GEOMETRY.labelGap));
+  const footprintStart = Math.min(pillStart, sidecarStart, labelsStart);
+  const footprintEnd = Math.max(pillEnd, sidecarEnd, labelsEnd);
+
+  return {
+    segments,
+    sidecar,
+    footprintStart,
+    footprintEnd,
+    startsAtPill: footprintStart === pillStart,
+    endsAtPill: footprintEnd === pillEnd,
+    duration: unit[count - 1].end - unit[0].start,
+  };
+}
+
+/** The sidecar band under a host role in this unit, if it has one. */
+function planSidecar(
+  unit: Span[],
+  spans: Span[],
+  sidecarHosts: Map<string, Span>,
+  { options, xOf, contentRight }: Context,
+): PlannedUnit['sidecar'] {
+  for (const [sideId, host] of sidecarHosts) {
+    if (!unit.includes(host)) continue;
+    const side = spans.find((span) => span.role.id === sideId)!;
+    const left = xOf(side.start) + GEOMETRY.gap / 2;
+    const right = Math.max(xOf(side.end) - GEOMETRY.gap / 2, left + GEOMETRY.minPillW);
+    let label: Label | null = null;
+    const title = side.role.title.trim();
+    if (options.showTitles && title) {
+      const titleWidth = options.measure(title);
+      const bandBottom = GEOMETRY.labelBand + GEOMETRY.pillH + GEOMETRY.sidecarGap + GEOMETRY.sidecarH;
+      const x = right + GEOMETRY.labelGap + titleWidth <= contentRight ? right + 6 : left - 6 - titleWidth;
+      label = { text: title, mode: 'float', x, y: bandBottom + 1, width: titleWidth, tether: null };
+    }
+    return { span: side, hostId: host.role.id, left, right, label };
+  }
+  return null;
+}
+
+/** Floating events go in a lane at the top, packed into as many sub-rows as their titles need. */
+function planFloatingLane(floatingEvents: FloatingEvent[], { options, xOf, pxPerMonth }: Context) {
+  const subRowEnds: number[] = [];
+  const events = [...floatingEvents]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((event) => {
+      const x = xOf(monthIndex(event.date)) + pxPerMonth / 2 - GEOMETRY.eventD / 2;
+      const title = event.title.trim();
+      const labelWidth = options.showTitles && title ? options.measure(title) : 0;
+      const end = x + GEOMETRY.eventD + (labelWidth ? 6 + labelWidth : 0);
+      let lane = subRowEnds.findIndex((rowEnd) => rowEnd + GEOMETRY.labelGap <= x);
+      if (lane < 0) {
+        lane = subRowEnds.length;
+        subRowEnds.push(-Infinity);
+      }
+      subRowEnds[lane] = end;
+      return { event, x, lane, title, labelWidth };
+    });
+  return { events, rows: subRowEnds.length };
+}
+
+/**
+ * Greedy first-fit packing, longest first when two units start together.
+ * A one-month overlap between pills (one role ends the month the next starts)
+ * still shares the row: the earlier pill is trimmed to meet the later one.
+ * Sorts `planned` in place; returns each unit's row in that order.
+ */
+function packIntoRows(planned: PlannedUnit[], pxPerMonth: number) {
+  planned.sort((a, b) => a.footprintStart - b.footprintStart || b.duration - a.duration);
+  const rows: { end: number; endsAtPill: boolean; last: PlannedUnit | null }[] = [];
+  const lastSegment = (unit: PlannedUnit) => unit.segments[unit.segments.length - 1];
+
+  const rowOf = planned.map((unit) => {
+    let row = rows.findIndex((candidate) => {
+      if (candidate.end <= unit.footprintStart + 0.5) return true;
+      if (!candidate.endsAtPill || !unit.startsAtPill || !candidate.last) return false;
+      const overlap = candidate.end - unit.footprintStart;
+      const tail = lastSegment(candidate.last);
+      return overlap <= pxPerMonth + 0.5 && unit.footprintStart - tail.x0 >= GEOMETRY.minPillW + GEOMETRY.gap;
+    });
+    if (row < 0) {
+      row = rows.length;
+      rows.push({ end: -Infinity, endsAtPill: true, last: null });
+    } else if (rows[row].end > unit.footprintStart + 0.5 && rows[row].last) {
+      // Trim the earlier pill so the two meet.
+      const tail = lastSegment(rows[row].last!);
+      const cut = tail.x1 - unit.footprintStart;
+      tail.x1 = unit.footprintStart;
+      tail.right = unit.footprintStart - GEOMETRY.gap / 2;
+      if (tail.label && tail.label.mode !== 'float') tail.label = { ...tail.label, width: tail.label.width - cut };
+    }
+    rows[row] = { end: unit.footprintEnd, endsAtPill: unit.endsAtPill, last: unit };
+    return row;
+  });
+  return { rowOf, rowCount: rows.length };
 }

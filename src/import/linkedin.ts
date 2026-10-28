@@ -17,6 +17,8 @@
  * browser, in tests and in Node. `pdf.ts` turns a file into lines.
  */
 
+import { MONTH_NAMES, toYearMonth } from '../data/months';
+
 export interface PdfLine {
   page: number;
   col: 'side' | 'main';
@@ -69,8 +71,7 @@ const near = (a: number, b: number, tol = 0.3) => Math.abs(a - b) <= tol;
 /** Anything over this between two body lines is a blank line, i.e. a new paragraph. */
 const PARAGRAPH_GAP = 27;
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const MONTH_RE = MONTHS.join('|');
+const MONTH_RE = MONTH_NAMES.join('|');
 // "April 2019 - April 2021 (2 years 1 month)" / "November 2025 - Present (1 year)" / "2015 - 2017"
 const DATE_RANGE_RE = new RegExp(
   `^((?:${MONTH_RE})\\s+)?(\\d{4})\\s*[-–]\\s*(?:((?:${MONTH_RE})\\s+)?(\\d{4})|Present)\\s*(\\(.*\\))?$`,
@@ -84,7 +85,7 @@ const BULLET_RE = /^[-•–·*]\s*/;
 function toPdfDate(monthWord: string | undefined, year: string | undefined): PdfDate | null {
   if (!year) return null;
   if (!monthWord) return year;
-  return `${year}-${String(MONTHS.indexOf(monthWord.trim()) + 1).padStart(2, '0')}`;
+  return toYearMonth(Number(year), MONTH_NAMES.indexOf(monthWord.trim() as (typeof MONTH_NAMES)[number]) + 1);
 }
 
 export function parseDateRange(text: string): { start: PdfDate | null; end: PdfDate | 'present' | null } | null {
@@ -95,7 +96,10 @@ export function parseDateRange(text: string): { start: PdfDate | null; end: PdfD
 
 /** Joins soft-wrapped lines, re-joining words split with a hyphen. */
 function joinWrapped(parts: string[]): string {
-  return parts.reduce((out, t) => (!out ? t : /\w-$/.test(out) && !/^[A-Z]/.test(t) ? `${out}${t}` : `${out} ${t}`), '');
+  return parts.reduce(
+    (out, t) => (!out ? t : /\w-$/.test(out) && !/^[A-Z]/.test(t) ? `${out}${t}` : `${out} ${t}`),
+    '',
+  );
 }
 
 /**
@@ -253,6 +257,8 @@ export function parseLinkedInLines(lines: PdfLine[]): LinkedInProfile {
 
 /** True when the lines look like a LinkedIn profile PDF at all. */
 export function looksLikeLinkedIn(lines: PdfLine[]): boolean {
-  const headings = new Set(lines.filter((l) => l.col === 'main' && near(l.size, 15.75, 0.5)).map((l) => l.text.trim().toLowerCase()));
+  const headings = new Set(
+    lines.filter((l) => l.col === 'main' && near(l.size, 15.75, 0.5)).map((l) => l.text.trim().toLowerCase()),
+  );
   return lines.some((l) => near(l.size, 26)) && (headings.has('experience') || headings.has('education'));
 }

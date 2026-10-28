@@ -1,18 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import { reducer, type Action } from './reducer';
-import type { TimelineDoc } from './schema';
-import { loadDoc, saveDoc, type LoadResult, type SaveStatus } from './storage';
-
-interface TimelineStore {
-  doc: TimelineDoc;
-  dispatch: (action: Action) => void;
-  /** How the timeline was loaded when the app opened. */
-  loaded: Pick<LoadResult, 'source' | 'warnings'>;
-  /** Result of the most recent save to the device. */
-  saveStatus: SaveStatus | 'pending';
-}
-
-const Ctx = createContext<TimelineStore | null>(null);
+import { loadDoc, saveDoc, type LoadResult } from './storage';
+import { TimelineContext, type TimelineStore } from './timelineContext';
 
 const SAVE_DELAY_MS = 400;
 
@@ -31,8 +20,8 @@ export function TimelineProvider({ children, initial }: { children: ReactNode; i
       return;
     }
     setSaveStatus('pending');
-    const t = setTimeout(() => setSaveStatus(saveDoc(doc)), SAVE_DELAY_MS);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSaveStatus(saveDoc(doc)), SAVE_DELAY_MS);
+    return () => clearTimeout(timer);
   }, [doc]);
 
   // Save right away if the tab is closed or hidden mid-debounce.
@@ -49,16 +38,10 @@ export function TimelineProvider({ children, initial }: { children: ReactNode; i
     };
   }, [doc]);
 
-  const dispatch = useCallback((a: Action) => rawDispatch(a), []);
+  const dispatch = useCallback((action: Action) => rawDispatch(action), []);
   const value = useMemo<TimelineStore>(
     () => ({ doc, dispatch, loaded: { source: first.source, warnings: first.warnings }, saveStatus }),
     [doc, dispatch, first, saveStatus],
   );
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
-}
-
-export function useTimeline(): TimelineStore {
-  const v = useContext(Ctx);
-  if (!v) throw new Error('useTimeline must be used inside <TimelineProvider>');
-  return v;
+  return <TimelineContext.Provider value={value}>{children}</TimelineContext.Provider>;
 }

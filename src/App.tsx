@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { DataPanel } from './components/DataPanel';
-import { ImportFlow } from './import/ImportFlow';
+import { ImportFlow } from './import/ui/ImportFlow';
 import { PdfButton } from './import/PdfButton';
 import { sampleDoc } from './data/sample';
 import { PALETTE_IDS } from './data/schema';
-import { useTimeline } from './data/store';
-import { HatchFill } from './timeline/hatches';
-import { PALETTES, swatchForThread } from './timeline/palettes';
+import { useTimeline } from './data/timelineContext';
+import { PALETTES } from './timeline/palettes';
+import { ThreadSwatch } from './timeline/ThreadSwatch';
 import { Timeline } from './timeline/Timeline';
 
 const ZOOMS = [1, 1.6, 2.5, 4, 6];
@@ -25,8 +25,12 @@ export function App() {
           multipotential<span className="brand-i">i</span>life
         </h1>
         <nav className="seg-ctl" aria-label="Sections">
-          <button className={tab === 'timeline' ? 'on' : ''} onClick={() => setTab('timeline')}>Timeline</button>
-          <button className={tab === 'data' ? 'on' : ''} onClick={() => setTab('data')}>Data</button>
+          <button className={tab === 'timeline' ? 'on' : ''} onClick={() => setTab('timeline')}>
+            Timeline
+          </button>
+          <button className={tab === 'data' ? 'on' : ''} onClick={() => setTab('data')}>
+            Data
+          </button>
         </nav>
       </header>
 
@@ -45,7 +49,11 @@ export function App() {
           <div className="tl-controls">
             <div className="seg-ctl" role="group" aria-label="Palette">
               {PALETTE_IDS.map((id) => (
-                <button key={id} className={doc.settings.palette === id ? 'on' : ''} onClick={() => dispatch({ type: 'updateSettings', patch: { palette: id } })}>
+                <button
+                  key={id}
+                  className={doc.settings.palette === id ? 'on' : ''}
+                  onClick={() => dispatch({ type: 'updateSettings', patch: { palette: id } })}
+                >
                   {PALETTES[id].name}
                 </button>
               ))}
@@ -60,17 +68,34 @@ export function App() {
               Titles
             </label>
             <div className="zoom" role="group" aria-label="Zoom">
-              <button onClick={() => setZoom((z) => Math.max(0, z - 1))} disabled={zoom === 0} aria-label="Zoom out">−</button>
-              <button onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} disabled={zoom === ZOOMS.length - 1} aria-label="Zoom in">+</button>
+              <button onClick={() => setZoom((z) => Math.max(0, z - 1))} disabled={zoom === 0} aria-label="Zoom out">
+                −
+              </button>
+              <button
+                onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}
+                disabled={zoom === ZOOMS.length - 1}
+                aria-label="Zoom in"
+              >
+                +
+              </button>
             </div>
           </div>
 
           {doc.roles.length === 0 ? (
             <div className="tl-empty">
-              <p><b>Start with your LinkedIn profile</b></p>
-              <p className="muted">On LinkedIn, open your profile, choose More, then Save to PDF. It's read on this device and never uploaded.</p>
-              <PdfButton className="btn pri" onFile={setImportFile}>Import LinkedIn PDF</PdfButton>
-              <button className="btn ghost" onClick={() => dispatch({ type: 'replace', doc: sampleDoc() })}>Or look at a sample timeline</button>
+              <p>
+                <b>Start with your LinkedIn profile</b>
+              </p>
+              <p className="muted">
+                On LinkedIn, open your profile, choose More, then Save to PDF. It's read on this device and never
+                uploaded.
+              </p>
+              <PdfButton className="btn pri" onFile={setImportFile}>
+                Import LinkedIn PDF
+              </PdfButton>
+              <button className="btn ghost" onClick={() => dispatch({ type: 'replace', doc: sampleDoc() })}>
+                Or look at a sample timeline
+              </button>
               <p className="muted">You can also restore a backup from the Data tab.</p>
             </div>
           ) : (
@@ -83,7 +108,7 @@ export function App() {
                 const used = doc.roles.some((r) => r.threads.includes(t.id));
                 return used ? (
                   <li key={t.id}>
-                    <Swatch threadId={t.id} />
+                    <ThreadSwatch doc={doc} threadId={t.id} />
                     {t.name}
                   </li>
                 ) : null;
@@ -94,17 +119,4 @@ export function App() {
       )}
     </div>
   );
-}
-
-
-function Swatch({ threadId }: { threadId: string }) {
-  const { doc } = useTimeline();
-  const s = swatchForThread(doc, threadId);
-  if (s.kind === 'hatch')
-    return (
-      <span className="key-sw hatched">
-        <HatchFill className="key-fill" hatch={s.hatch} inverted={s.inverted} />
-      </span>
-    );
-  return <span className="key-sw" style={{ background: s.fill, borderColor: s.edge }} />;
 }

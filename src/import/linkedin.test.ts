@@ -110,8 +110,16 @@ describe('parseLinkedInLines', () => {
   it('reads companies, roles, wrapped titles, locations and details', () => {
     expect(p.experience.map((c) => c.company)).toEqual(['Northwind Studio', 'Lake Superior Schools', 'Gap Year']);
     const [senior, carto, committee] = p.experience[0].roles;
-    expect(senior).toMatchObject({ title: 'Senior Cartographer', start: '2021-03', end: 'present', location: 'Duluth, Minnesota' });
-    expect(senior.details).toEqual(['Led the redesign of the regional trail atlas, working with park rangers', 'Built a print pipeline']);
+    expect(senior).toMatchObject({
+      title: 'Senior Cartographer',
+      start: '2021-03',
+      end: 'present',
+      location: 'Duluth, Minnesota',
+    });
+    expect(senior.details).toEqual([
+      'Led the redesign of the regional trail atlas, working with park rangers',
+      'Built a print pipeline',
+    ]);
     expect(carto.location).toBe('');
     expect(carto.details).toEqual(['Drew maps for the city.', 'Second paragraph of the description.']);
     expect(committee.title).toBe('Safety Committee Member - Internal Initiative');
@@ -120,7 +128,12 @@ describe('parseLinkedInLines', () => {
 
   it('reads education with and without dates', () => {
     expect(p.education).toEqual([
-      { school: 'University of Minnesota Duluth', degree: 'Bachelor of Arts - BA, Geography', start: '2010', end: '2014' },
+      {
+        school: 'University of Minnesota Duluth',
+        degree: 'Bachelor of Arts - BA, Geography',
+        start: '2010',
+        end: '2014',
+      },
       { school: 'Some Online School', degree: 'Certificate, GIS', start: null, end: null },
     ]);
   });
@@ -145,7 +158,11 @@ describe('profileToDrafts', () => {
   const { profile, drafts } = profileToDrafts(parseLinkedInLines(fixture()), () => `id${++n}`);
 
   it('carries the profile basics', () => {
-    expect(profile).toEqual({ name: 'Sam Example', headline: 'Designer, teacher and occasional beekeeper', linkedin: 'www.linkedin.com/in/sam-example' });
+    expect(profile).toEqual({
+      name: 'Sam Example',
+      headline: 'Designer, teacher and occasional beekeeper',
+      linkedin: 'www.linkedin.com/in/sam-example',
+    });
   });
 
   it('chains a promotion and flags a long overlap at the same company', () => {
@@ -167,7 +184,13 @@ describe('profileToDrafts', () => {
   it('turns a reviewed draft into a role with no threads picked', () => {
     const d = drafts[0];
     const role = draftToRole({ ...d, start: d.start!, end: d.end! }, []);
-    expect(role).toMatchObject({ title: 'Senior Cartographer', company: 'Northwind Studio', end: 'now', threads: [], events: [] });
+    expect(role).toMatchObject({
+      title: 'Senior Cartographer',
+      company: 'Northwind Studio',
+      end: 'now',
+      threads: [],
+      events: [],
+    });
     expect(role.overlapStyle).toBeNull();
   });
 });

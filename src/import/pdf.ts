@@ -13,7 +13,10 @@ interface TextItem {
   height: number;
 }
 const isTextItem = (it: unknown): it is TextItem =>
-  typeof it === 'object' && it !== null && typeof (it as TextItem).str === 'string' && Array.isArray((it as TextItem).transform);
+  typeof it === 'object' &&
+  it !== null &&
+  typeof (it as TextItem).str === 'string' &&
+  Array.isArray((it as TextItem).transform);
 
 /** Turns pdf.js text items into lines: one per column and baseline, in reading order. Footers are dropped. */
 export async function extractLines(doc: PdfDocLike): Promise<PdfLine[]> {
@@ -54,10 +57,12 @@ export async function extractLines(doc: PdfDocLike): Promise<PdfLine[]> {
 let pdfjs: Promise<typeof import('pdfjs-dist')> | null = null;
 /** Loads pdf.js on first use, so it isn't part of the first page load. */
 function loadPdfJs() {
-  pdfjs ??= Promise.all([import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url')]).then(([lib, worker]) => {
-    lib.GlobalWorkerOptions.workerSrc = worker.default;
-    return lib;
-  });
+  pdfjs ??= Promise.all([import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url')]).then(
+    ([lib, worker]) => {
+      lib.GlobalWorkerOptions.workerSrc = worker.default;
+      return lib;
+    },
+  );
   return pdfjs;
 }
 
@@ -81,7 +86,8 @@ export async function readPdfLines(bytes: ArrayBuffer): Promise<PdfLine[]> {
     try {
       doc = await task.promise;
     } catch (e) {
-      if (e instanceof Error && e.name === 'PasswordException') throw new PdfReadError('locked', 'That PDF is password protected.');
+      if (e instanceof Error && e.name === 'PasswordException')
+        throw new PdfReadError('locked', 'That PDF is password protected.');
       throw new PdfReadError('unreadable', "That PDF couldn't be read.");
     }
     return await extractLines(doc);

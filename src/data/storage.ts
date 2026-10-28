@@ -34,7 +34,7 @@ function getStore(): Storage | null {
 export function loadDoc(): LoadResult {
   const store = getStore();
   if (!store) return { doc: emptyDoc(), source: 'unavailable', warnings: [] };
-  let text: string | null = null;
+  let text: string | null;
   try {
     text = store.getItem(STORAGE_KEY);
   } catch {

@@ -13,7 +13,8 @@ export interface ColorSwatch {
   edge: string;
 }
 
-export type HatchId = 'dots45' | 'earth' | 'batt' | 'sand' | 'diag' | 'cross' | 'steel' | 'alum' | 'gravel' | 'vline' | 'check' | 'chev';
+export type HatchId =
+  'dots45' | 'earth' | 'batt' | 'sand' | 'diag' | 'cross' | 'steel' | 'alum' | 'gravel' | 'vline' | 'check' | 'chev';
 
 export interface HatchSwatch {
   kind: 'hatch';
