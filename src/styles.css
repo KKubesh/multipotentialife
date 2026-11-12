@@ -418,3 +418,64 @@ h2 {
   width: 100%;
   height: 100%;
 }
+
+/* Thread chips (import review, coloring) */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip-btn {
+  font: inherit;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.chip-btn.on {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: #0958d9;
+}
+.chip-btn small {
+  font-size: 11px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0 5px;
+  line-height: 16px;
+}
+.chip-btn:focus-visible {
+  outline: 2px solid var(--primary-line);
+  outline-offset: 1px;
+}
+
+/* Hidden visually, still read by screen readers. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* "N roles have no threads yet" line above the timeline */
+.tl-nudge {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: #595959;
+}
+.tl-nudge .linkish {
+  font-size: 13px;
+}

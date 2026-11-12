@@ -67,7 +67,7 @@
     display: none;
   }
   /* The timeline makes room for the drawer and refits, so the selected role stays in view. */
-  .app.has-detail .tl-page {
+  .tl-page.has-detail {
     margin-right: 400px;
   }
   .detail-body {

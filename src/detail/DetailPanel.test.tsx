@@ -4,16 +4,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { App } from '../App';
 import { sampleDoc } from '../data/sample';
 import { TimelineProvider } from '../data/store';
+import { stubLayout } from '../test/stubLayout';
 
-// jsdom has no layout: give the timeline a width and a no-op ResizeObserver so it draws.
-beforeAll(() => {
-  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1200 });
-  globalThis.ResizeObserver ??= class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-});
+beforeAll(() => stubLayout());
 
 function setup() {
   render(

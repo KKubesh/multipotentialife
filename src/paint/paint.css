@@ -1,0 +1,66 @@
+/* "Color your timeline" bar: fixed to the bottom of the screen while coloring. */
+.paint {
+  position: fixed;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--surface, #fff);
+  border-top: 1px solid var(--line, #f0f0f0);
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.06);
+  animation: paint-up 0.2s ease-out;
+}
+.paint-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.paint-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.paint-hint {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+}
+.paint-threads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.paint-threads .chip-btn {
+  flex: none;
+}
+.paint .chip-btn .paint-count {
+  background: #f0f0f0;
+  color: #595959;
+}
+.paint .chip-btn.on .paint-count {
+  background: var(--primary);
+  color: #fff;
+}
+.paint-remaining {
+  margin: 0;
+  font-size: 12.5px;
+  color: #8c8c8c;
+}
+/* Room under the timeline so the bar never covers the last rows. */
+.tl-page.painting {
+  padding-bottom: 280px;
+}
+@keyframes paint-up {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .paint {
+    animation: none;
+  }
+}
