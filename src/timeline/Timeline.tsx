@@ -20,14 +20,29 @@ export interface TimelineProps {
   /** The role or event whose detail is open; everything else fades. */
   selection?: Selection | null;
   onSelect?: (selection: Selection) => void;
+  /** Show titles regardless of the saved setting (e.g. while coloring roles). */
+  forceTitles?: boolean;
+  /**
+   * Toggle mode: these roles show as pressed and nothing fades (used while
+   * coloring, for the roles that have the chosen thread).
+   */
+  pressedRoleIds?: ReadonlySet<string> | null;
 }
 
 /** Below this the pills get too thin to read; the timeline scrolls instead. */
 const MIN_PX_PER_MONTH = 1.6;
 const MAX_PX_PER_MONTH = 24;
 
-export function Timeline({ doc, zoom = 1, now = currentMonth(), selection = null, onSelect }: TimelineProps) {
-  const showTitles = doc.settings.showTitles;
+export function Timeline({
+  doc,
+  zoom = 1,
+  now = currentMonth(),
+  selection = null,
+  onSelect,
+  forceTitles = false,
+  pressedRoleIds = null,
+}: TimelineProps) {
+  const showTitles = forceTitles || doc.settings.showTitles;
   const scroller = useRef<HTMLDivElement>(null);
   const [viewW, setViewW] = useState(0);
   useLayoutEffect(() => {
@@ -73,6 +88,10 @@ export function Timeline({ doc, zoom = 1, now = currentMonth(), selection = null
   const isSelected = (kind: Selection['kind'], id: string) => selection?.kind === kind && selection.id === id;
   const selectRole = (id: string, eventId?: string) => () => onSelect?.({ kind: 'role', id, eventId });
   const tapState = (kind: Selection['kind'], id: string) => {
+    if (pressedRoleIds) {
+      // Only roles take a thread here; events with no role step back.
+      return { selected: kind === 'role' && pressedRoleIds.has(id), dim: kind === 'floating' };
+    }
     const selected = isSelected(kind, id);
     return { selected, dim: hasSelection && !selected };
   };

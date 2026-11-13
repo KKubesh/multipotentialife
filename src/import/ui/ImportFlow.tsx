@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { TimelineDoc } from '../../data/schema';
 import { useTimeline } from '../../data/timelineContext';
 import type { ImportResult } from '../drafts';
 import { PdfReadError } from '../pdf';
@@ -23,11 +24,13 @@ const MIN_LOADER_MS = 700;
 export interface ImportFlowProps {
   file: File;
   onClose: () => void;
+  /** Called with the new timeline once the import is added (before onClose). */
+  onImported?: (doc: TimelineDoc) => void;
   /** Swappable in tests. */
   readFile?: (file: File) => Promise<ImportResult>;
 }
 
-export function ImportFlow({ file, onClose, readFile = readLinkedInFile }: ImportFlowProps) {
+export function ImportFlow({ file, onClose, onImported, readFile = readLinkedInFile }: ImportFlowProps) {
   const { doc, dispatch } = useTimeline();
   const [stage, setStage] = useState<Stage>({ kind: 'reading' });
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -117,6 +120,7 @@ export function ImportFlow({ file, onClose, readFile = readLinkedInFile }: Impor
           onEdit={(index) => setStage({ kind: 'review', index })}
           onDone={(next) => {
             dispatch({ type: 'replace', doc: next });
+            onImported?.(next);
             onClose();
           }}
         />

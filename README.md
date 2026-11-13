@@ -81,6 +81,17 @@ npm run build
 
 Pills, sidecar bands and dots are buttons, so the timeline works with a keyboard too: Tab to a role, Enter to open it.
 
+## Coloring roles
+
+`src/paint/` is "Color your timeline": pick a thread in the bar at the bottom, then tap roles to add it (tap again to take it off). It opens on its own after an import that leaves roles without threads, from the Color button, or from the "no threads yet" line above the timeline. Titles show while coloring; Done or Escape goes back.
+
+| File           | What it does                                                                                   |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| `paint.ts`     | Adding or removing a thread on a tap (tap order is kept), counts per thread                    |
+| `PaintBar.tsx` | The bar: thread chips with counts, hint, Done, and a screen-reader announcement of each change |
+
+`src/TimelinePage.tsx` is the timeline screen that ties the controls, timeline, key, detail panel and coloring together.
+
 ## LinkedIn import
 
 `src/import/` reads a LinkedIn "Save to PDF" profile on the device; nothing is uploaded.

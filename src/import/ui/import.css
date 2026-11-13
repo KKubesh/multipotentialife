@@ -210,43 +210,6 @@
   padding: 6px 10px;
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.chip-btn {
-  font: inherit;
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px 0 8px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-}
-.chip-btn.on {
-  border-color: var(--primary);
-  background: var(--primary-soft);
-  color: #0958d9;
-}
-.chip-btn small {
-  font-size: 11px;
-  background: var(--primary);
-  color: #fff;
-  border-radius: 8px;
-  padding: 0 5px;
-  line-height: 16px;
-}
-.chip-btn:focus-visible {
-  outline: 2px solid var(--primary-line);
-  outline-offset: 1px;
-}
-
 .details {
   list-style: none;
   margin: 0;
