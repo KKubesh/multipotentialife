@@ -90,7 +90,7 @@ export function RoleEditor({ doc, role, headingId, onDelete, onDone }: RoleEdito
 
       <div className="field">
         <span>
-          Threads <small className="muted">the first two color the pill</small>
+          Threads <small className="muted">tap order sets the order of the dots</small>
         </span>
         <ThreadPicker doc={doc} value={draft.threads} onChange={(threads) => change({ threads })} />
       </div>

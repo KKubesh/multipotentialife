@@ -9,8 +9,8 @@ import { SelectionDetail } from './detail/SelectionDetail';
 import { PdfButton } from './import/PdfButton';
 import { countWithoutThreads, toggleThread } from './paint/paint';
 import { PaintBar } from './paint/PaintBar';
-import { PALETTES } from './timeline/palettes';
-import { ThreadSwatch } from './timeline/ThreadSwatch';
+import { HatchFill } from './timeline/hatches';
+import { dotColor, PALETTES, swatchForThread } from './timeline/palettes';
 import { Timeline } from './timeline/Timeline';
 
 const ZOOMS = [1, 1.6, 2.5, 4, 6];
@@ -30,6 +30,10 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
   // Coloring and reading details don't mix: while coloring, nothing is open.
   const selection = painting ? null : chosen;
   const [brush, setBrush] = useState<string>(() => doc.threads[0]?.id ?? '');
+  // The thread picked in the key: its roles light up in its colour, the rest fade.
+  const [pickedThread, setFocus] = useState<string | null>(null);
+  // Coloring has its own thread picker, so the key's filter steps aside.
+  const focus = painting ? null : pickedThread;
   const [announcement, setAnnouncement] = useState('');
   const [editing, setEditing] = useState(false);
   // A role just added with "+ Add role": removed again if it's closed while still empty.
@@ -85,6 +89,35 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
     setUndo({ before: doc, after: after.updatedAt, what: role ? (role.title ? `“${role.title}”` : 'Role') : 'Moment' });
   };
 
+  // The filter clears on Escape, or a tap anywhere but a mark, the key, the
+  // controls or the open panel. On click, like the panel, so a tap that
+  // closes the panel clears the filter in the same go.
+  useEffect(() => {
+    if (!focus) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFocus(null);
+    };
+    const onClickAway = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (target?.closest('[data-select], .tl-key, .tl-controls, .detail, .edit-undo')) return;
+      setFocus(null);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('click', onClickAway);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', onClickAway);
+    };
+  }, [focus]);
+
+  /** Picks or clears a thread in the key. Anything open without that thread closes. */
+  const pickThread = (threadId: string) => {
+    if (focus === threadId) return setFocus(null);
+    setFocus(threadId);
+    const open = selection?.kind === 'role' ? doc.roles.find((r) => r.id === selection.id) : undefined;
+    if (selection && !open?.threads.includes(threadId)) choose(null);
+  };
+
   // Escape leaves coloring.
   useEffect(() => {
     if (!painting) return;
@@ -96,7 +129,12 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
   }, [painting, onPaintingChange]);
 
   const onTimelineTap = (tapped: Selection) => {
-    if (!painting) return choose(tapped);
+    if (!painting) {
+      // Opening something outside the picked thread turns the filter off.
+      const role = tapped.kind === 'role' ? doc.roles.find((r) => r.id === tapped.id) : undefined;
+      if (focus && !role?.threads.includes(focus)) setFocus(null);
+      return choose(tapped);
+    }
     const role = tapped.kind === 'role' ? doc.roles.find((r) => r.id === tapped.id) : undefined;
     if (!role || !brushThread) return;
     const threads = toggleThread(role.threads, brushThread.id);
@@ -227,18 +265,42 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
         onSelect={onTimelineTap}
         forceTitles={painting}
         pressedRoleIds={pressedRoleIds}
+        focusThread={focus}
       />
 
       {!painting && (
-        <ul className="tl-key" aria-label="Threads">
-          {doc.threads.map((thread) =>
-            doc.roles.some((r) => r.threads.includes(thread.id)) ? (
+        <ul className="tl-key" aria-label="Threads" data-keeps-detail>
+          {doc.threads.map((thread) => {
+            if (!doc.roles.some((r) => r.threads.includes(thread.id))) return null;
+            const swatch = swatchForThread(doc, thread.id);
+            const on = focus === thread.id;
+            // The picked chip takes the same fill and edge as the pills it lights up.
+            const onStyle = on
+              ? swatch.kind === 'color'
+                ? { background: swatch.fill, borderColor: swatch.edge }
+                : { borderColor: dotColor(swatch) }
+              : undefined;
+            return (
               <li key={thread.id}>
-                <ThreadSwatch doc={doc} threadId={thread.id} />
-                {thread.name}
+                <button
+                  type="button"
+                  className={`key-chip${on ? ' on' : ''}${focus && !on ? ' faded' : ''}`}
+                  aria-pressed={on}
+                  style={onStyle}
+                  onClick={() => pickThread(thread.id)}
+                >
+                  {swatch.kind === 'hatch' ? (
+                    <span className="key-dot hatched">
+                      <HatchFill className="key-fill" hatch={swatch.hatch} inverted={swatch.inverted} />
+                    </span>
+                  ) : (
+                    <span className="key-dot" style={{ background: dotColor(swatch) }} />
+                  )}
+                  {thread.name}
+                </button>
               </li>
-            ) : null,
-          )}
+            );
+          })}
         </ul>
       )}
 

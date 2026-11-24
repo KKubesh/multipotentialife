@@ -2,7 +2,7 @@ import type { Role, TimelineDoc } from '../data/schema';
 
 /**
  * "Color your timeline": pick a thread, then tap roles to add it or take it
- * off. Tap order is kept, so the first two threads tapped still color the pill.
+ * off. Tap order is kept, so the dots on the pill stay in the order tapped.
  */
 export function toggleThread(threads: string[], threadId: string): string[] {
   return threads.includes(threadId) ? threads.filter((id) => id !== threadId) : [...threads, threadId];

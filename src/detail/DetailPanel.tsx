@@ -13,7 +13,9 @@ export interface DetailPanelProps {
 /**
  * The detail panel: a bottom sheet on phones, a right-side drawer on wider
  * screens (the CSS decides). It closes with ✕, Escape, or a tap anywhere
- * outside it, except on another role, which switches to that role instead.
+ * outside it, except on another role, which switches to that role instead,
+ * and on anything marked `data-keeps-detail` (the thread key, which decides
+ * for itself whether the open role stays).
  */
 export function DetailPanel({ contentKey, labelledBy, onClose, children }: DetailPanelProps) {
   const panel = useRef<HTMLElement>(null);
@@ -42,7 +44,7 @@ export function DetailPanel({ contentKey, labelledBy, onClose, children }: Detai
     // On click (not pointer-down), so whatever was tapped gets its click before the timeline widens back.
     const onClickAway = (e: MouseEvent) => {
       const target = e.target as Element | null;
-      if (!target || panel.current?.contains(target) || target.closest('[data-select]')) return;
+      if (!target || panel.current?.contains(target) || target.closest('[data-select], [data-keeps-detail]')) return;
       closeRef.current();
     };
     document.addEventListener('keydown', onKey);

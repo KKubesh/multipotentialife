@@ -2,91 +2,87 @@ import { monthIndex } from '../data/months';
 import type { FloatingEvent, Role, RoleEvent, TimelineDoc, YearMonth } from '../data/schema';
 
 /**
- * The packed layout: turns roles into positioned pills, rows, events and
- * labels. Pure and deterministic so it can be tested without a browser.
+ * The packed layout: turns roles into positioned pills, circles, events and
+ * titles. Pure and deterministic so it can be tested without a browser.
  *
- * Time runs left to right at a fixed number of pixels per month. Each row is
- * a horizontal band; a unit (one role, or a chain of roles at one company)
- * goes into the first row whose previous contents end before the unit's
- * footprint starts. A footprint covers everything the unit draws in its row:
- * pills, its sidecar band and any title labels, so nothing ever collides.
+ * Time runs left to right at a fixed number of pixels per month. A unit (one
+ * role, or a chain of roles at one company) goes into the first row whose
+ * contents end before it starts. Every role is drawn the same way: a gray pill
+ * (or a circle when it's too short), its threads as dots at the start, its
+ * title inside, and its events as rings above. Roles are never tied together
+ * by placement; only a chain (role change) joins pills.
  */
 
 export const GEOMETRY = {
   padX: 16,
   axisH: 26,
   pillH: 22,
-  /** Space above each pill for floating titles (only when titles are on). */
-  labelBand: 16,
-  /** Space under each pill: sidecar band (3px gap + 7px) + breathing room. */
-  below: 12,
-  sidecarGap: 3,
-  sidecarH: 7,
+  /** Space above a pill for event rings, only in rows that have events. */
+  eventBand: 22,
+  below: 10,
   floatLaneH: 22,
-  /** Visible space between neighbouring pills. */
   gap: 2,
-  /** Horizontal run of the slanted cut between chained roles. */
   slant: 7,
   minPillW: 14,
+  /** A solo role narrower than this is drawn as a circle. */
+  circleBelow: 30,
+  circleD: 22,
+  dotD: 9,
+  /** Centre of the first thread dot, from the pill's start. */
+  dotLead: 11,
+  dotStep: 5,
+  dotStepMin: 3,
+  ringD: 11.5,
+  ringGap: 3,
+  eventDotD: 4.5,
+  /** Floating-event dot. */
   eventD: 12,
-  /** Horizontal padding inside a pill for its title. */
-  textPad: 12,
-  /** A title that can't show at least this many characters floats outside. */
-  minChars: 10,
+  textGap: 5,
+  textPadRight: 9,
   labelGap: 8,
   bottomPad: 10,
 } as const;
 
 export type SegKind = 'solo' | 'first' | 'mid' | 'last';
-
-export interface Tether {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
+export type Shape = 'pill' | 'circle';
 
 export interface Label {
+  /** What fits: the full title, a trimmed one, initials, or one letter. */
   text: string;
-  /** in = full title inside; clip = trimmed inside with an ellipsis; float = outside with a tether. */
-  mode: 'in' | 'clip' | 'float';
+  /** in = inside a pill; beside = next to a floating event's dot. */
+  mode: 'in' | 'beside';
   /** Left edge and baseline of the text. */
   x: number;
   y: number;
-  /** Width available (in/clip) or measured (float). */
+  /** Width available (in) or measured (beside). */
   width: number;
-  tether: Tether | null;
 }
 
 export interface LaidSegment {
   role: Role;
   kind: SegKind;
-  /** Time extent in px (before the visual gap is applied). */
+  shape: Shape;
   x0: number;
   x1: number;
-  /** Visible left/right edges of the pill body (gap applied; slant not included). */
+  /** Visible left/right edges (gap applied; slant not included). For circles, the circle's box. */
   left: number;
   right: number;
   row: number;
-  /** Top of the pill. */
   y: number;
+  /** Centres of the thread dots, relative to the pill's left edge (slant included). */
+  dots: { x: number; threadId: string }[];
   label: Label | null;
 }
 
 export interface LaidEvent {
   role: Role;
   event: RoleEvent;
-  x: number;
-  y: number;
-}
-
-export interface LaidSidecar {
-  role: Role;
-  hostId: string;
-  left: number;
-  right: number;
-  y: number;
-  label: Label | null;
+  /** Dot on the pill's top edge. */
+  dotX: number;
+  dotY: number;
+  /** Centre of the ring above. */
+  ringX: number;
+  ringY: number;
 }
 
 export interface LaidFloating {
@@ -102,12 +98,9 @@ export interface Layout {
   rowCount: number;
   pxPerMonth: number;
   years: { year: number; x: number }[];
-  /** y where the role rows start (below the axis and floating-event lane). */
   rowsTop: number;
-  rowH: number;
   segments: LaidSegment[];
   events: LaidEvent[];
-  sidecars: LaidSidecar[];
   floating: LaidFloating[];
   floatLaneTop: number;
   floatLaneRows: number;
@@ -116,21 +109,13 @@ export interface Layout {
 export interface LayoutOptions {
   pxPerMonth: number;
   showTitles: boolean;
-  /** Width in px of a title at the label font size. */
   measure: (text: string) => number;
-  /** The current month, for roles ending "now". */
   now: YearMonth;
 }
 
-/** Roles in a row at one company whose dates are this close share an edge. */
+/** Roles in a chain whose dates are this close share an edge. */
 const SNAP_MONTHS = 2;
 
-const sameCompany = (a: Role, b: Role) => {
-  const company = a.company.trim().toLowerCase();
-  return company !== '' && company === b.company.trim().toLowerCase();
-};
-
-/** A role's time extent in month indexes; `end` is exclusive. */
 interface Span {
   role: Role;
   start: number;
@@ -139,7 +124,6 @@ interface Span {
 
 type Doc = Pick<TimelineDoc, 'roles' | 'floatingEvents'>;
 
-/** Months shown for a document: January of the first year to a few months past the end. */
 export function timeRange(doc: Doc, now: YearMonth) {
   const nowMonth = monthIndex(now);
   const starts = [...doc.roles.map((r) => monthIndex(r.start)), ...doc.floatingEvents.map((e) => monthIndex(e.date))];
@@ -152,7 +136,6 @@ export function timeRange(doc: Doc, now: YearMonth) {
   return { firstMonth, endMonth: Math.max(...ends) + 3 };
 }
 
-/** Pixels per month that fit the whole range in a given width. */
 export function fitPxPerMonth(doc: Doc, now: YearMonth, width: number) {
   const { firstMonth, endMonth } = timeRange(doc, now);
   return (width - 2 * GEOMETRY.padX) / Math.max(1, endMonth - firstMonth);
@@ -166,115 +149,126 @@ function toSpans(roles: Role[], nowMonth: number): Span[] {
   });
 }
 
-/** Which role each sidecar rides under, the same way the layout decides it: side role id → host role id. */
-export function findSidecarHosts(doc: Doc, now: YearMonth): Map<string, string> {
-  const hosts = new Map<string, string>();
-  for (const [sideId, host] of assignSidecarHosts(toSpans(doc.roles, monthIndex(now)))) hosts.set(sideId, host.role.id);
-  return hosts;
-}
-
-/** What every step of the layout needs to know. */
 interface Context {
   options: LayoutOptions;
   pxPerMonth: number;
-  /** Left edge in px of a month. */
   xOf: (month: number) => number;
-  /** Right limit for anything drawn. */
-  contentRight: number;
 }
 
-/** A unit (one role, or a chain) laid out relative to the top of its row. */
 interface PlannedUnit {
   segments: Omit<LaidSegment, 'row' | 'y'>[];
-  sidecar: { span: Span; hostId: string; left: number; right: number; label: Label | null } | null;
-  /** Horizontal extent of everything the unit draws, labels included. */
   footprintStart: number;
   footprintEnd: number;
-  /** The footprint starts / ends at a pill edge (not a label or sidecar). */
-  startsAtPill: boolean;
-  endsAtPill: boolean;
-  /** Months from the first start to the last end, to place longer units first. */
   duration: number;
+  hasEvents: boolean;
+}
+
+/** Dot centres for n threads in a pill whose dots start at `lead`, squeezed to fit `room`. */
+export function dotCentres(n: number, lead: number, room: number) {
+  if (n === 0) return [];
+  const step = Math.max(
+    GEOMETRY.dotStepMin,
+    Math.min(GEOMETRY.dotStep, n > 1 ? (room - GEOMETRY.dotD) / (n - 1) : GEOMETRY.dotStep),
+  );
+  return Array.from({ length: n }, (_, i) => lead + i * step);
+}
+
+const initials = (title: string) =>
+  title
+    .split(/[\s/&-]+/)
+    .filter((w) => /^[A-Za-z0-9]/.test(w) && !/^(of|and|the|for|at|in)$/i.test(w))
+    .map((w) => w[0].toUpperCase())
+    .join('');
+
+/** Full title → ellipsis (3+ letters) → initials → one letter + ellipsis → nothing. */
+export function fitTitle(title: string, available: number, measure: LayoutOptions['measure']): string | null {
+  if (!title || available <= 0) return null;
+  if (measure(title) <= available) return title;
+  for (let n = title.length - 1; n >= 3; n--) {
+    const cut = title.slice(0, n).trimEnd() + '…';
+    if (n >= 3 && measure(cut) <= available) return cut;
+  }
+  const ini = initials(title);
+  if (ini.length > 1 && measure(ini) <= available) return ini;
+  const one = title[0].toUpperCase() + '…';
+  if (measure(one) <= available) return one;
+  return null;
 }
 
 export function layoutTimeline(doc: Doc, options: LayoutOptions): Layout {
   const nowMonth = monthIndex(options.now);
   const spans = toSpans(doc.roles, nowMonth);
-
   const { firstMonth, endMonth } = timeRange(doc, options.now);
   const { pxPerMonth } = options;
   const xOf = (month: number) => GEOMETRY.padX + (month - firstMonth) * pxPerMonth;
   const width = xOf(endMonth) + GEOMETRY.padX;
-  const context: Context = { options, pxPerMonth, xOf, contentRight: width - GEOMETRY.padX };
+  const context: Context = { options, pxPerMonth, xOf };
 
-  const sidecarHosts = assignSidecarHosts(spans);
-  const units = groupIntoUnits(spans, sidecarHosts);
-  const planned = units.map((unit) => planUnit(unit, spans, sidecarHosts, context));
-
+  const planned = groupIntoUnits(spans).map((unit) => planUnit(unit, context));
   const lane = planFloatingLane(doc.floatingEvents, context);
   const floatLaneTop = GEOMETRY.axisH;
   const rowsTop = floatLaneTop + lane.rows * GEOMETRY.floatLaneH + (lane.rows ? 4 : 0);
-  // With titles on, the row also holds sidecar labels under the pill, so it gets a little more air.
-  const rowH = (options.showTitles ? GEOMETRY.labelBand + 6 : 0) + GEOMETRY.pillH + GEOMETRY.below;
 
-  const { rowOf, rowCount } = packIntoRows(planned, pxPerMonth);
+  const { rowOf, rowCount } = packIntoRows(planned, options.measure);
+  const rowHasEvents = Array.from({ length: rowCount }, () => false);
+  planned.forEach((unit, i) => {
+    if (unit.hasEvents) rowHasEvents[rowOf[i]] = true;
+  });
+  const rowTops: number[] = [];
+  let y = rowsTop;
+  for (let r = 0; r < rowCount; r++) {
+    rowTops.push(y);
+    y += (rowHasEvents[r] ? GEOMETRY.eventBand : 0) + GEOMETRY.pillH + GEOMETRY.below;
+  }
 
   const segments: LaidSegment[] = [];
-  const events: LaidEvent[] = [];
-  const sidecars: LaidSidecar[] = [];
+  const eventsByRow: LaidEvent[][] = Array.from({ length: rowCount }, () => []);
   planned.forEach((unit, i) => {
     const row = rowOf[i];
-    const rowTop = rowsTop + row * rowH;
-    // Labels were planned with a title band above the pill; without titles there is no band.
-    const bandOffset = options.showTitles ? 0 : -GEOMETRY.labelBand;
-    const place = (label: Label | null): Label | null =>
-      label && {
-        ...label,
-        y: rowTop + label.y + bandOffset,
-        tether: label.tether && {
-          ...label.tether,
-          y1: rowTop + label.tether.y1 + bandOffset,
-          y2: rowTop + label.tether.y2 + bandOffset,
-        },
-      };
-    const pillTop = rowTop + (options.showTitles ? GEOMETRY.labelBand : 0);
-
+    const pillTop = rowTops[row] + (rowHasEvents[row] ? GEOMETRY.eventBand : 0);
     for (const segment of unit.segments) {
-      segments.push({ ...segment, row, y: pillTop, label: place(segment.label) });
+      const label = segment.label && { ...segment.label, y: pillTop + GEOMETRY.pillH / 2 + 4 };
+      segments.push({ ...segment, row, y: pillTop, label });
       for (const event of segment.role.events) {
-        events.push({
-          role: segment.role,
-          event,
-          x: eventX(monthIndex(event.date), segment.left, segment.right, context),
-          y: pillTop + (GEOMETRY.pillH - GEOMETRY.eventD) / 2,
-        });
+        let dotX: number;
+        if (segment.shape === 'circle') dotX = (segment.left + segment.right) / 2;
+        else {
+          const lead = segment.kind === 'last' || segment.kind === 'mid' ? GEOMETRY.slant : 0;
+          const at = xOf(monthIndex(event.date)) + pxPerMonth / 2;
+          dotX = Math.max(segment.left - lead + 11, Math.min(segment.right - 8, at));
+        }
+        const ringY = pillTop - GEOMETRY.eventBand + GEOMETRY.ringD / 2 + 1;
+        // The line rises at the same slant as a role-change cut.
+        const ringX = dotX + (pillTop - ringY - GEOMETRY.ringD / 2) * (GEOMETRY.slant / GEOMETRY.pillH);
+        eventsByRow[row].push({ role: segment.role, event, dotX, dotY: pillTop, ringX, ringY });
       }
-    }
-    if (unit.sidecar) {
-      sidecars.push({
-        role: unit.sidecar.span.role,
-        hostId: unit.sidecar.hostId,
-        left: unit.sidecar.left,
-        right: unit.sidecar.right,
-        y: pillTop + GEOMETRY.pillH + GEOMETRY.sidecarGap,
-        label: place(unit.sidecar.label),
-      });
     }
   });
 
-  const floating: LaidFloating[] = lane.events.map((planned) => {
-    const y = floatLaneTop + planned.lane * GEOMETRY.floatLaneH + (GEOMETRY.floatLaneH - GEOMETRY.eventD) / 2;
-    const label: Label | null = planned.labelWidth
+  // Nudge rings in a row apart so they never touch.
+  const events: LaidEvent[] = [];
+  for (const rowEvents of eventsByRow) {
+    rowEvents.sort((a, b) => a.ringX - b.ringX);
+    let last = -Infinity;
+    for (const e of rowEvents) {
+      e.ringX = Math.max(e.ringX, last + GEOMETRY.ringD + GEOMETRY.ringGap);
+      last = e.ringX;
+      events.push(e);
+    }
+  }
+
+  const floating: LaidFloating[] = lane.events.map((p) => {
+    const fy = floatLaneTop + p.lane * GEOMETRY.floatLaneH + (GEOMETRY.floatLaneH - GEOMETRY.eventD) / 2;
+    const label: Label | null = p.labelWidth
       ? {
-          text: planned.title,
-          mode: 'float',
-          x: planned.x + GEOMETRY.eventD + 6,
-          y: y + GEOMETRY.eventD - 2,
-          width: planned.labelWidth,
-          tether: null,
+          text: p.title,
+          mode: 'beside',
+          x: p.x + GEOMETRY.eventD + 6,
+          y: fy + GEOMETRY.eventD - 2,
+          width: p.labelWidth,
         }
       : null;
-    return { event: planned.event, x: planned.x, y, label };
+    return { event: p.event, x: p.x, y: fy, label };
   });
 
   const years: Layout['years'] = [];
@@ -282,66 +276,23 @@ export function layoutTimeline(doc: Doc, options: LayoutOptions): Layout {
 
   return {
     width,
-    height: rowsTop + rowCount * rowH + GEOMETRY.bottomPad,
+    height: y + GEOMETRY.bottomPad,
     rowCount,
     pxPerMonth,
     years,
     rowsTop,
-    rowH,
     segments,
     events,
-    sidecars,
     floating,
     floatLaneTop,
     floatLaneRows: lane.rows,
   };
 }
 
-/** Left edge of an event dot in its month, kept inside its pill. */
-function eventX(month: number, pillLeft: number, pillRight: number, context: Context) {
-  const centered = context.xOf(month) + context.pxPerMonth / 2 - GEOMETRY.eventD / 2;
-  return Math.max(pillLeft + 4, Math.min(pillRight - GEOMETRY.eventD - 4, centered));
-}
-
-/**
- * A role marked "sidecar" rides under the same-company role it overlaps most.
- * One sidecar per host; any extra side role gets its own row instead.
- * Returns side role id → host span.
- */
-function assignSidecarHosts(spans: Span[]): Map<string, Span> {
-  const hostOf = new Map<string, Span>();
-  const hostsUsed = new Set<Span>();
-  for (const side of [...spans].sort((a, b) => a.start - b.start)) {
-    if (side.role.overlapStyle !== 'sidecar') continue;
-    let best: Span | null = null;
-    let bestOverlap = 0;
-    for (const other of spans) {
-      const eligible =
-        other !== side &&
-        other.role.overlapStyle !== 'sidecar' &&
-        !hostsUsed.has(other) &&
-        sameCompany(side.role, other.role);
-      if (!eligible) continue;
-      const overlap = Math.min(side.end, other.end) - Math.max(side.start, other.start);
-      if (overlap > bestOverlap) {
-        best = other;
-        bestOverlap = overlap;
-      }
-    }
-    if (best) {
-      hostOf.set(side.role.id, best);
-      hostsUsed.add(best);
-    }
-  }
-  return hostOf;
-}
-
-/** Units are what get placed in rows: a chain (sorted by start) or a single role. Sidecars ride with their host. */
-function groupIntoUnits(spans: Span[], sidecarHosts: Map<string, Span>): Span[][] {
+function groupIntoUnits(spans: Span[]): Span[][] {
   const chains = new Map<string, Span[]>();
   const units: Span[][] = [];
   for (const span of spans) {
-    if (sidecarHosts.has(span.role.id)) continue;
     if (span.role.chain) {
       const chain = chains.get(span.role.chain) ?? [];
       chain.push(span);
@@ -352,147 +303,65 @@ function groupIntoUnits(spans: Span[], sidecarHosts: Map<string, Span>): Span[][
   return units;
 }
 
-/** Baseline of a floating title, inside the label band above the pill (row top = 0). */
-const floatBaseline = GEOMETRY.labelBand - 4;
-
-function fitTitle(title: string, available: number, measure: LayoutOptions['measure']): Label['mode'] {
-  if (!title) return 'float';
-  if (measure(title) <= available) return 'in';
-  return measure(title.slice(0, GEOMETRY.minChars) + '…') <= available ? 'clip' : 'float';
-}
-
-/** A floating title with a short tether line back to the pill. */
-function floatingLabel(text: string, width: number, x: number, tether: { x1: number; y1: number; x2: number }): Label {
-  return { text, mode: 'float', x, y: floatBaseline, width, tether: { ...tether, y2: floatBaseline - 4 } };
-}
-
-/** Lays out one unit relative to its row top (0), including its titles and any sidecar. */
-function planUnit(unit: Span[], spans: Span[], sidecarHosts: Map<string, Span>, context: Context): PlannedUnit {
-  const { options, xOf, contentRight, pxPerMonth } = context;
+function planUnit(unit: Span[], { options, xOf, pxPerMonth }: Context): PlannedUnit {
   const count = unit.length;
   const segments: PlannedUnit['segments'] = [];
   let previousEnd = -Infinity;
-  let lastChainLabelEnd = -Infinity; // right end of the last floating title in this chain
 
   unit.forEach((span, i) => {
     const kind: SegKind = count === 1 ? 'solo' : i === 0 ? 'first' : i === count - 1 ? 'last' : 'mid';
     let x0 = xOf(span.start);
     let x1 = xOf(span.end);
-    if (i > 0 && Math.abs(x0 - previousEnd) <= SNAP_MONTHS * pxPerMonth) x0 = previousEnd; // handover snap
+    if (i > 0 && Math.abs(x0 - previousEnd) <= SNAP_MONTHS * pxPerMonth) x0 = previousEnd;
     x0 = Math.max(x0, previousEnd);
     x1 = Math.max(x1, x0 + GEOMETRY.minPillW + GEOMETRY.gap);
     previousEnd = x1;
-    const left = x0 + GEOMETRY.gap / 2;
-    const right = x1 - GEOMETRY.gap / 2;
+    let left = x0 + GEOMETRY.gap / 2;
+    let right = x1 - GEOMETRY.gap / 2;
+    const threads = span.role.threads;
 
+    let shape: Shape = 'pill';
+    let dots: LaidSegment['dots'];
     let label: Label | null = null;
-    const title = span.role.title.trim();
-    if (options.showTitles && title) {
-      const padLeft = GEOMETRY.textPad + (kind === 'last' || kind === 'mid' ? GEOMETRY.slant : 0);
-      const padRight = GEOMETRY.textPad + (kind === 'first' || kind === 'mid' ? GEOMETRY.slant : 0);
-      // Keep inside text clear of event dots.
-      const firstEventX = span.role.events
-        .map((event) => eventX(monthIndex(event.date), left, right, context))
-        .sort((a, b) => a - b)[0];
-      const textRight = firstEventX !== undefined ? Math.min(right - padRight, firstEventX - 6) : right - padRight;
-      const available = textRight - (left + padLeft);
-      const mode = fitTitle(title, available, options.measure);
-
-      if (mode !== 'float') {
-        const baseline = GEOMETRY.labelBand + GEOMETRY.pillH / 2 + 4;
-        label = { text: title, mode, x: left + padLeft, y: baseline, width: available, tether: null };
-      } else {
-        // Floating titles sit in the label band above the row. A title that can't be
-        // placed without touching another one is left off (it's still in the hover card).
-        const titleWidth = options.measure(title);
-        if (kind === 'solo') {
-          if (right + GEOMETRY.labelGap + titleWidth <= contentRight) {
-            const x = right + GEOMETRY.labelGap;
-            label = floatingLabel(title, titleWidth, x, { x1: right - 4, y1: GEOMETRY.labelBand + 3, x2: x - 3 });
-          } else if (left - GEOMETRY.labelGap - titleWidth >= GEOMETRY.padX) {
-            const x = left - GEOMETRY.labelGap - titleWidth;
-            label = floatingLabel(title, titleWidth, x, {
-              x1: left + 4,
-              y1: GEOMETRY.labelBand + 3,
-              x2: x + titleWidth + 3,
-            });
-          }
-        } else {
-          // Chains: titles run left to right in reading order and never overlap each other.
-          let x = kind === 'last' ? right + GEOMETRY.labelGap : left + GEOMETRY.textPad;
-          x = Math.max(x, lastChainLabelEnd + GEOMETRY.labelGap);
-          if (x + titleWidth > contentRight) x = contentRight - titleWidth;
-          if (x >= lastChainLabelEnd + GEOMETRY.labelGap && x >= GEOMETRY.padX) {
-            lastChainLabelEnd = x + titleWidth;
-            if (kind === 'last' && x >= right) {
-              label = floatingLabel(title, titleWidth, x, { x1: right - 4, y1: GEOMETRY.labelBand + 3, x2: x - 3 });
-            } else {
-              const anchor = Math.min(left + GEOMETRY.textPad, right - 4);
-              label = floatingLabel(title, titleWidth, x, {
-                x1: anchor,
-                y1: GEOMETRY.labelBand + 2,
-                x2: Math.max(x - 3, anchor),
-              });
-            }
-          }
-        }
+    if (kind === 'solo' && right - left < GEOMETRY.circleBelow) {
+      // Short role: a circle centred on its dates, dots centred inside (up to 3).
+      shape = 'circle';
+      const centre = (x0 + x1) / 2;
+      left = centre - GEOMETRY.circleD / 2;
+      right = centre + GEOMETRY.circleD / 2;
+      const shown = threads.slice(0, 3);
+      const spread = (shown.length - 1) * GEOMETRY.dotStep;
+      dots = shown.map((threadId, k) => ({ threadId, x: GEOMETRY.circleD / 2 - spread / 2 + k * GEOMETRY.dotStep }));
+    } else {
+      const lead = kind === 'last' || kind === 'mid' ? GEOMETRY.slant : 0;
+      const tail = kind === 'first' || kind === 'mid' ? GEOMETRY.slant : 0;
+      const width = right - left + lead;
+      // Dots get at most the first half of the pill.
+      const room = Math.max(GEOMETRY.dotD, (width - lead - tail) / 2);
+      dots = dotCentres(threads.length, lead + GEOMETRY.dotLead, room).map((x, k) => ({ x, threadId: threads[k] }));
+      if (options.showTitles) {
+        const textStart =
+          left - lead + (dots.length ? dots[dots.length - 1].x + GEOMETRY.dotD / 2 + GEOMETRY.textGap : lead + 10);
+        const textEnd = right - tail - GEOMETRY.textPadRight;
+        const text = fitTitle(span.role.title.trim(), textEnd - textStart, options.measure);
+        if (text) label = { text, mode: 'in', x: textStart, y: 0, width: textEnd - textStart };
       }
     }
-    segments.push({ role: span.role, kind, x0, x1, left, right, label });
+    segments.push({ role: span.role, kind, shape, x0, x1, left, right, dots, label });
   });
 
-  const sidecar = planSidecar(unit, spans, sidecarHosts, context);
-
-  // Footprint: pills edge to edge; labels plus breathing room so text never touches a neighbour.
-  const pillStart = segments[0].x0;
-  const pillEnd = segments[segments.length - 1].x1;
-  const floatingLabels = [...segments.map((segment) => segment.label), sidecar?.label ?? null].filter(
-    (label): label is Label => !!label && label.mode === 'float',
-  );
-  const sidecarStart = sidecar ? sidecar.left - GEOMETRY.gap / 2 : Infinity;
-  const sidecarEnd = sidecar ? sidecar.right + GEOMETRY.gap / 2 : -Infinity;
-  const labelsStart = Math.min(...floatingLabels.map((label) => label.x - GEOMETRY.labelGap));
-  const labelsEnd = Math.max(...floatingLabels.map((label) => label.x + label.width + GEOMETRY.labelGap));
-  const footprintStart = Math.min(pillStart, sidecarStart, labelsStart);
-  const footprintEnd = Math.max(pillEnd, sidecarEnd, labelsEnd);
-
+  const footprintStart = Math.min(segments[0].x0, segments[0].left - GEOMETRY.gap / 2);
+  const lastSeg = segments[segments.length - 1];
+  const footprintEnd = Math.max(lastSeg.x1, lastSeg.right + GEOMETRY.gap / 2);
   return {
     segments,
-    sidecar,
     footprintStart,
     footprintEnd,
-    startsAtPill: footprintStart === pillStart,
-    endsAtPill: footprintEnd === pillEnd,
     duration: unit[count - 1].end - unit[0].start,
+    hasEvents: unit.some((s) => s.role.events.length > 0),
   };
 }
 
-/** The sidecar band under a host role in this unit, if it has one. */
-function planSidecar(
-  unit: Span[],
-  spans: Span[],
-  sidecarHosts: Map<string, Span>,
-  { options, xOf, contentRight }: Context,
-): PlannedUnit['sidecar'] {
-  for (const [sideId, host] of sidecarHosts) {
-    if (!unit.includes(host)) continue;
-    const side = spans.find((span) => span.role.id === sideId)!;
-    const left = xOf(side.start) + GEOMETRY.gap / 2;
-    const right = Math.max(xOf(side.end) - GEOMETRY.gap / 2, left + GEOMETRY.minPillW);
-    let label: Label | null = null;
-    const title = side.role.title.trim();
-    if (options.showTitles && title) {
-      const titleWidth = options.measure(title);
-      const bandBottom = GEOMETRY.labelBand + GEOMETRY.pillH + GEOMETRY.sidecarGap + GEOMETRY.sidecarH;
-      const x = right + GEOMETRY.labelGap + titleWidth <= contentRight ? right + 6 : left - 6 - titleWidth;
-      label = { text: title, mode: 'float', x, y: bandBottom + 1, width: titleWidth, tether: null };
-    }
-    return { span: side, hostId: host.role.id, left, right, label };
-  }
-  return null;
-}
-
-/** Floating events go in a lane at the top, packed into as many sub-rows as their titles need. */
 function planFloatingLane(floatingEvents: FloatingEvent[], { options, xOf, pxPerMonth }: Context) {
   const subRowEnds: number[] = [];
   const events = [...floatingEvents]
@@ -514,37 +383,55 @@ function planFloatingLane(floatingEvents: FloatingEvent[], { options, xOf, pxPer
 }
 
 /**
- * Greedy first-fit packing, longest first when two units start together.
- * A one-month overlap between pills (one role ends the month the next starts)
+ * Greedy first-fit, longest first when two units start together. A short
+ * overlap (a quarter of the earlier pill at most, e.g. a same-month handover)
  * still shares the row: the earlier pill is trimmed to meet the later one.
  * Sorts `planned` in place; returns each unit's row in that order.
  */
-function packIntoRows(planned: PlannedUnit[], pxPerMonth: number) {
+function packIntoRows(planned: PlannedUnit[], measure: LayoutOptions['measure']) {
   planned.sort((a, b) => a.footprintStart - b.footprintStart || b.duration - a.duration);
-  const rows: { end: number; endsAtPill: boolean; last: PlannedUnit | null }[] = [];
-  const lastSegment = (unit: PlannedUnit) => unit.segments[unit.segments.length - 1];
+  const rowEnds: number[] = [];
+  const rowLast: (PlannedUnit | null)[] = [];
+  const rowOf: number[] = [];
 
-  const rowOf = planned.map((unit) => {
-    let row = rows.findIndex((candidate) => {
-      if (candidate.end <= unit.footprintStart + 0.5) return true;
-      if (!candidate.endsAtPill || !unit.startsAtPill || !candidate.last) return false;
-      const overlap = candidate.end - unit.footprintStart;
-      const tail = lastSegment(candidate.last);
-      return overlap <= pxPerMonth + 0.5 && unit.footprintStart - tail.x0 >= GEOMETRY.minPillW + GEOMETRY.gap;
-    });
-    if (row < 0) {
-      row = rows.length;
-      rows.push({ end: -Infinity, endsAtPill: true, last: null });
-    } else if (rows[row].end > unit.footprintStart + 0.5 && rows[row].last) {
-      // Trim the earlier pill so the two meet.
-      const tail = lastSegment(rows[row].last!);
-      const cut = tail.x1 - unit.footprintStart;
+  const fits = (row: number, unit: PlannedUnit) => {
+    if (row < 0) return false;
+    if (row >= rowEnds.length) return true;
+    return rowEnds[row] <= unit.footprintStart + 0.5 || canTrim(row, unit);
+  };
+  const canTrim = (row: number, unit: PlannedUnit) => {
+    const last = rowLast[row];
+    if (!last) return false;
+    const tail = last.segments[last.segments.length - 1];
+    const overlap = rowEnds[row] - unit.footprintStart;
+    return (
+      tail.shape === 'pill' &&
+      unit.segments[0].shape === 'pill' &&
+      overlap <= (tail.x1 - tail.x0) / 4 &&
+      unit.footprintStart - tail.x0 >= GEOMETRY.minPillW + GEOMETRY.gap
+    );
+  };
+
+  planned.forEach((unit) => {
+    let row = rowEnds.findIndex((_, r) => fits(r, unit));
+    if (row < 0) row = rowEnds.length;
+    if (row >= rowEnds.length) {
+      rowEnds[row] = -Infinity;
+      rowLast[row] = null;
+    } else if (rowEnds[row] > unit.footprintStart + 0.5 && rowLast[row]) {
+      const tail = rowLast[row]!.segments[rowLast[row]!.segments.length - 1];
       tail.x1 = unit.footprintStart;
       tail.right = unit.footprintStart - GEOMETRY.gap / 2;
-      if (tail.label && tail.label.mode !== 'float') tail.label = { ...tail.label, width: tail.label.width - cut };
+      if (tail.label) {
+        // The title has less room now: fit it again.
+        const width = tail.label.width - (rowEnds[row] - unit.footprintStart);
+        const text = fitTitle(tail.role.title.trim(), width, measure);
+        tail.label = text ? { ...tail.label, text, width } : null;
+      }
     }
-    rows[row] = { end: unit.footprintEnd, endsAtPill: unit.endsAtPill, last: unit };
-    return row;
+    rowEnds[row] = unit.footprintEnd;
+    rowLast[row] = unit;
+    rowOf.push(row);
   });
-  return { rowOf, rowCount: rows.length };
+  return { rowOf, rowCount: rowEnds.length };
 }

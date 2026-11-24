@@ -107,15 +107,5 @@ export function swatchForThread(doc: TimelineDoc, threadId: string): Swatch {
   return palette.swatches[(t.order - 1) % palette.swatches.length];
 }
 
-/** The two swatches that fill a pill: its first two threads (or one thread twice). */
-export function pillSwatches(doc: TimelineDoc, threads: string[]): [Swatch, Swatch] {
-  if (threads.length === 0) return [UNTHREADED, UNTHREADED];
-  const a = swatchForThread(doc, threads[0]);
-  const b = threads[1] ? swatchForThread(doc, threads[1]) : a;
-  return [a, b];
-}
-
-/** Edge color of a swatch: the pill outline, divider and event rim. */
-export const edgeOf = (s: Swatch) => (s.kind === 'color' ? s.edge : INK);
-/** Rim of an event dot: white on white-on-black hatches so it shows on its own dark pill. */
-export const rimOf = (s: Swatch) => (s.kind === 'color' ? s.edge : s.inverted ? PAPER : INK);
+/** A thread dot's colour: the swatch's edge, or ink for hatches (patterns are too small to read at 9px). */
+export const dotColor = (s: Swatch) => (s.kind === 'color' ? s.edge : INK);

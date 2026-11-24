@@ -52,19 +52,23 @@ npm run build
 
 ## Timeline
 
-`src/timeline/` draws the timeline:
+`src/timeline/` draws the timeline. Every role is a gray pill with its threads as small overlapping dots at the start; a role too short for a pill is a circle centred on its dates. Titles always sit inside the pill (full, cut with "…", initials, one letter, or hidden), events are rings above the pill joined to a dot on its edge, and a slanted cut joins roles in a role change. Roles are never tied together by placement.
 
-| File               | What it does                                                                                                                                                             |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `layout.ts`        | Pure packed layout: chains, handover snap, sidecars, events, floating events, title placement (inside, trimmed, or floating with a tether) with a no-collision guarantee |
-| `labelMeasure.ts`  | Measures title widths in the real font, re-measuring once web fonts load                                                                                                 |
-| `palettes.ts`      | Soft, Earth, Bloom and Mono palettes; thread to swatch lookup                                                                                                            |
-| `hatches.tsx`      | Mono hatches as inline SVG patterns                                                                                                                                      |
-| `Pill.tsx`         | Pill segments, event dots, sidecar bands                                                                                                                                 |
-| `ThreadSwatch.tsx` | A thread's color or hatch as a small pill, for keys and pickers                                                                                                          |
-| `Timeline.tsx`     | Scrollable timeline, fit-to-width zoom, opens at the present                                                                                                             |
+| File               | What it does                                                                                                                 |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `layout.ts`        | Pure packed layout: chains, handover snap, circles for short roles, thread dots, titles inside, event rings, floating events |
+| `labelMeasure.ts`  | Measures title widths in the real font, re-measuring once web fonts load                                                     |
+| `palettes.ts`      | Soft, Earth, Bloom and Mono palettes; thread to swatch lookup; dot colours                                                   |
+| `hatches.tsx`      | Mono hatches as inline SVG patterns                                                                                          |
+| `Pill.tsx`         | Pills and circles with thread dots, event rings, floating-event dots                                                         |
+| `ThreadSwatch.tsx` | A thread's color or hatch as a small pill, for pickers and the detail panel                                                  |
+| `Timeline.tsx`     | Scrollable timeline, fit-to-width zoom, opens at the present; fading for an open role and the thread filter                  |
 
-`layout.test.ts` checks the sample and 200 random careers for any overlap, with titles on and off.
+`layout.test.ts` checks the sample and 200 random careers for any overlap, and that every title fits inside its pill, with titles on and off. Turning titles on never moves anything.
+
+### Thread filter
+
+The key under the timeline is a row of pill-sized chips. Tapping one lights up that thread's roles in its colour (Mono: its hatch) and fades the rest. Opening one of those roles keeps the filter and steps the thread's other roles back part way; opening a role without the thread turns the filter off. Picking a thread the open role doesn't have closes it. Tap the chip again, press Escape, or tap anywhere but a mark, the key, the controls or the panel to clear it. `filter.ui.test.tsx` covers these rules.
 
 ## Role detail
 
@@ -73,13 +77,13 @@ npm run build
 | File                      | What it does                                                                     |
 | ------------------------- | -------------------------------------------------------------------------------- |
 | `selection.ts`            | What's selected: a role (optionally one of its events) or an event with no role  |
-| `relations.ts`            | "Role change · after …" and sidecar lines, the same way the layout links roles   |
+| `relations.ts`            | "Role change · after …" / "before …" lines for roles in a chain                  |
 | `DetailPanel.tsx`         | The sheet/drawer shell: closing, focus moves to the heading and back to the pill |
 | `RoleDetail.tsx`          | Company, title, dates and duration, relations, threads, details, events          |
 | `FloatingEventDetail.tsx` | An event with no parent role                                                     |
 | `SelectionDetail.tsx`     | Picks the right content for the selection                                        |
 
-Pills, sidecar bands and dots are buttons, so the timeline works with a keyboard too: Tab to a role, Enter to open it.
+Pills, circles and event rings are buttons, so the timeline works with a keyboard too: Tab to a role, Enter to open it.
 
 ## Coloring roles
 
