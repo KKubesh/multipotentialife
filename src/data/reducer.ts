@@ -10,6 +10,8 @@ export type Action =
   | { type: 'addRole'; role?: Partial<Role> }
   | { type: 'updateRole'; id: string; patch: Partial<Omit<Role, 'id'>> }
   | { type: 'removeRole'; id: string }
+  /** Puts a role in a chain (or takes it out with null); a chain left with one role dissolves. */
+  | { type: 'setRoleChain'; id: string; chain: string | null }
   | { type: 'addThread'; name: string }
   | { type: 'renameThread'; id: string; name: string }
   | { type: 'removeThread'; id: string }
@@ -67,6 +69,16 @@ function apply(doc: TimelineDoc, a: Action): TimelineDoc {
       // A chain of one is no longer a chain.
       if (removed.chain && roles.filter((r) => r.chain === removed.chain).length < 2) {
         roles = roles.map((r) => (r.chain === removed.chain ? { ...r, chain: null } : r));
+      }
+      return { ...doc, roles };
+    }
+    case 'setRoleChain': {
+      const role = doc.roles.find((r) => r.id === a.id);
+      if (!role || role.chain === a.chain) return doc;
+      let roles = doc.roles.map((r) => (r.id === a.id ? { ...r, chain: a.chain } : r));
+      const left = role.chain;
+      if (left && roles.filter((r) => r.chain === left).length < 2) {
+        roles = roles.map((r) => (r.chain === left ? { ...r, chain: null } : r));
       }
       return { ...doc, roles };
     }

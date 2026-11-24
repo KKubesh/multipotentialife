@@ -92,6 +92,19 @@ Pills, sidecar bands and dots are buttons, so the timeline works with a keyboard
 
 `src/TimelinePage.tsx` is the timeline screen that ties the controls, timeline, key, detail panel and coloring together.
 
+## Editing roles
+
+`src/edit/` is edit mode: switch to Edit above the timeline, then tap a role or moment to change it in the side panel (a bottom sheet on phones). Changes save as they're typed; an end before the start waits until it's fixed. "+ Add role" only shows in Edit; a new role closed while still empty is dropped. Delete offers Undo until the next change.
+
+| File                      | What it does                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------ |
+| `RoleEditor.tsx`          | The role form: title, company, dates, threads, role-change switch, details, events   |
+| `EventsEditor.tsx`        | A role's events, each a name and a month                                             |
+| `FloatingEventEditor.tsx` | The form for a moment with no role                                                   |
+| `chain.ts`                | Which same-company role a role can combine with as a role change, and the date check |
+
+The form reuses the import review's month field, thread picker and details editor.
+
 ## LinkedIn import
 
 `src/import/` reads a LinkedIn "Save to PDF" profile on the device; nothing is uploaded.
