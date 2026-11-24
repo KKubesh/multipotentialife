@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyDoc } from '../data/defaults';
 import { blankRole } from '../data/reducer';
-import { findSidecarHosts } from '../timeline/layout';
 import { relationsFor } from './relations';
 
 describe('relationsFor', () => {
@@ -18,6 +17,7 @@ describe('relationsFor', () => {
         chain: 'tgt',
       }),
       blankRole({ id: 'dr', title: 'Consultant: Dragos', company: 'SDG', start: '2023-05', end: '2024-03' }),
+      // An old backup can still say "sidecar"; roles aren't tied together any more.
       blankRole({
         id: 'cm',
         title: 'Committee Member',
@@ -28,12 +28,10 @@ describe('relationsFor', () => {
       }),
     ],
   };
-  const hosts = findSidecarHosts(doc, '2026-10');
   const texts = (id: string) =>
     relationsFor(
       doc.roles.find((r) => r.id === id)!,
       doc,
-      hosts,
     ).map((r) => r.text);
 
   it('describes role changes in a chain', () => {
@@ -41,9 +39,8 @@ describe('relationsFor', () => {
     expect(texts('sr')).toEqual(['Role change · after UI Engineer']);
   });
 
-  it('describes a sidecar from both sides', () => {
-    expect(hosts.get('cm')).toBe('dr');
-    expect(texts('cm')).toEqual(['Sidecar · alongside Consultant: Dragos']);
-    expect(texts('dr')).toEqual(['With Committee Member alongside']);
+  it('does not tie together overlapping roles at the same company', () => {
+    expect(texts('cm')).toEqual([]);
+    expect(texts('dr')).toEqual([]);
   });
 });

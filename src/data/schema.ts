@@ -55,7 +55,7 @@ export interface Role {
   company: string;
   start: YearMonth;
   end: RoleEnd;
-  /** Ordered thread ids; the first two fill the pill. */
+  /** Ordered thread ids; drawn as dots in this order, the first on top. */
   threads: string[];
   /** Ordered bullet points. */
   details: string[];

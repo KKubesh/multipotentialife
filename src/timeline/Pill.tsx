@@ -1,17 +1,17 @@
 import type { CSSProperties } from 'react';
 import { HatchFill } from './hatches';
-import { edgeOf, INK, rimOf, type Swatch } from './palettes';
-import type { SegKind } from './layout';
+import { GEOMETRY, type SegKind, type Shape } from './layout';
+import { dotColor, INK, type Swatch } from './palettes';
 
 /**
- * A pill segment. Two layers: the outer element is the edge (outline), the
- * inner one is the fill, inset by the edge width. Both are clipped to the same
- * shape, so slanted cuts get a matching slanted outline.
+ * Timeline marks. Every pill is gray with a slate edge; a role's colour lives
+ * in its thread dots. With a thread picked in the key, pills that have it
+ * ("lit") fill in that thread's colour or hatch.
  *
- * Color swatches blend top into bottom with a soft seam. Hatch swatches split
- * hard at the middle with a dark divider when the two halves differ.
- *
- * Pills, bands and dots are buttons: tap or Enter opens the role's detail.
+ * Pills, circles and event rings are buttons: tap or Enter opens the role.
+ * Two layers per pill: the outer element is the edge, the inner `.fill` is
+ * inset by the edge width, both clipped to the same shape so slanted cuts get
+ * a matching slanted edge.
  */
 
 const vars = (o: Record<string, string>) => o as CSSProperties;
@@ -22,132 +22,110 @@ interface TapProps {
   style: CSSProperties;
   onSelect?: () => void;
   selected?: boolean;
-  /** Faded while something else is selected. */
+  /** Faded: not part of what's open or filtered. */
   dim?: boolean;
+  /** Stepped back part way: in the thread filter, but not the open role. */
+  soft?: boolean;
 }
 
-const stateClass = ({ selected, dim }: Pick<TapProps, 'selected' | 'dim'>) =>
-  `${selected ? ' selected' : ''}${dim ? ' dim' : ''}`;
+const stateClass = ({ selected, dim, soft }: Pick<TapProps, 'selected' | 'dim' | 'soft'>) =>
+  `${selected ? ' selected' : ''}${dim ? ' dim' : ''}${soft ? ' soft' : ''}`;
 
-function Fill({ top, bottom, divider }: { top: Swatch; bottom: Swatch; divider: boolean }) {
-  if (top.kind === 'color' && bottom.kind === 'color') {
-    return <i className="fill" style={vars({ '--t1': top.fill, '--t2': bottom.fill })} />;
-  }
-  const half = (s: Swatch, cls: string) =>
-    s.kind === 'hatch' ? (
-      <HatchFill className={cls} hatch={s.hatch} inverted={s.inverted} />
-    ) : (
-      <span className={cls} style={{ background: s.fill }} />
-    );
-  return (
-    <i className="fill hatched">
-      {half(top, 'half top')}
-      {half(bottom, 'half bottom')}
-      {divider && <b className="divider" style={{ background: INK }} />}
-    </i>
-  );
-}
+const GRAY = { '--fill': '#f6f7f9', '--edge': '#8793a5' };
 
 export interface PillProps extends TapProps {
   kind: SegKind;
-  swatches: [Swatch, Swatch];
-  /** Draw the divider between halves (two-thread roles in Mono). */
-  split: boolean;
+  shape: Shape;
+  /** Thread dots, first thread first; x is the dot's centre from the pill's left edge. */
+  dots: { x: number; swatch: Swatch }[];
+  /** The picked thread's swatch when this role has it: the pill fills with it. */
+  lit?: Swatch | null;
 }
 
-export function Pill({ kind, swatches, split, style, label, onSelect, selected, dim }: PillProps) {
-  const [a, b] = swatches;
+export function Pill({ kind, shape, dots, lit, style, label, onSelect, selected, dim, soft }: PillProps) {
+  const colors = !lit
+    ? GRAY
+    : lit.kind === 'color'
+      ? { '--fill': lit.fill, '--edge': lit.edge }
+      : { '--fill': '#fff', '--edge': INK };
   return (
     <button
       type="button"
-      className={`seg tap ${kind}${stateClass({ selected, dim })}`}
+      className={`seg tap ${shape === 'circle' ? 'circle' : kind}${lit ? ' lit' : ''}${stateClass({ selected, dim, soft })}`}
       aria-label={label}
       aria-pressed={selected}
       title={label}
       data-select
       onClick={onSelect}
-      style={{ ...style, ...vars({ '--b1': edgeOf(a), '--b2': edgeOf(b) }) }}
+      style={{ ...style, ...vars(colors) }}
     >
-      <Fill top={a} bottom={b} divider={split && a !== b} />
+      <i className="fill">
+        {lit?.kind === 'hatch' && <HatchFill className="fill-hatch" hatch={lit.hatch} inverted={lit.inverted} />}
+      </i>
+      {/* Later dots first, so the first thread sits on top of the stack. */}
+      {dots
+        .map((d, i) => (
+          <b key={i} className="tdot" style={{ left: d.x - GEOMETRY.dotD / 2, background: dotColor(d.swatch) }} />
+        ))
+        .reverse()}
     </button>
   );
 }
 
-/** A moment on a role: a small circle in the role's colors (or its first hatch). */
-export function EventDot({
-  swatches,
-  style,
-  label,
-  onSelect,
-  selected,
-  dim,
-}: TapProps & { swatches: [Swatch, Swatch] }) {
-  const [a, b] = swatches;
-  const common = {
-    type: 'button' as const,
-    'aria-label': label,
-    'aria-pressed': selected,
-    title: label,
-    'data-select': true,
-    onClick: onSelect,
-  };
-  if (a.kind === 'hatch') {
-    return (
-      <button
-        {...common}
-        className={`ev tap hatched${stateClass({ selected, dim })}`}
-        style={{ ...style, background: rimOf(a) }}
-      >
-        <HatchFill className="ev-fill" hatch={a.hatch} inverted={a.inverted} />
-      </button>
-    );
-  }
-  const bb = b.kind === 'color' ? b : a;
-  return (
-    <button
-      {...common}
-      className={`ev tap${stateClass({ selected, dim })}`}
-      style={{ ...style, ...vars({ '--t1': a.fill, '--t2': bb.fill, '--b1': a.edge, '--b2': bb.edge }) }}
-    />
-  );
+export interface EventMarkProps extends Omit<TapProps, 'style'> {
+  /** Small dot on the pill's top edge, at the event's date. */
+  dotX: number;
+  dotY: number;
+  /** Centre of the hollow ring above it. */
+  ringX: number;
+  ringY: number;
+  /** Ring colour: the role's first thread. */
+  color: string;
 }
 
-/** A parallel role riding under its host pill. */
-export function SidecarBand({ swatch, style, label, onSelect, selected, dim }: TapProps & { swatch: Swatch }) {
-  const common = {
-    type: 'button' as const,
-    'aria-label': label,
-    'aria-pressed': selected,
-    title: label,
-    'data-select': true,
-    onClick: onSelect,
-  };
-  if (swatch.kind === 'hatch') {
-    return (
-      <button
-        {...common}
-        className={`band tap hatched${stateClass({ selected, dim })}`}
-        style={{ ...style, background: INK }}
-      >
-        <HatchFill className="band-fill" hatch={swatch.hatch} inverted={swatch.inverted} />
-      </button>
-    );
-  }
+/** A moment during a role: hollow ring above the pill, a slanted line down to a dot on its top edge. */
+export function EventMark({ dotX, dotY, ringX, ringY, color, label, onSelect, selected, dim, soft }: EventMarkProps) {
+  const r = GEOMETRY.ringD / 2;
+  const left = Math.min(dotX, ringX) - r - 2;
+  const top = ringY - r - 2;
+  const w = Math.abs(ringX - dotX) + 2 * r + 4;
+  const h = dotY - top + GEOMETRY.eventDotD / 2 + 2;
+  // The line runs from the ring's edge to the dot.
+  const dx = dotX - ringX;
+  const dy = dotY - ringY;
+  const len = Math.hypot(dx, dy) || 1;
   return (
     <button
-      {...common}
-      className={`band tap${stateClass({ selected, dim })}`}
-      style={{ ...style, ...vars({ '--t1': swatch.fill, '--b1': swatch.edge }) }}
-    />
+      type="button"
+      className={`evm tap${stateClass({ selected, dim, soft })}`}
+      aria-label={label}
+      aria-pressed={selected}
+      title={label}
+      data-select
+      onClick={onSelect}
+      style={{ left, top, width: w, height: h }}
+    >
+      <svg width={w} height={h} aria-hidden="true">
+        <line
+          x1={ringX + (dx / len) * r - left}
+          y1={ringY + (dy / len) * r - top}
+          x2={dotX - left}
+          y2={dotY - top}
+          className="evm-line"
+        />
+        <circle cx={ringX - left} cy={ringY - top} r={r - 1.25} className="evm-ring" style={{ stroke: color }} />
+        <circle cx={dotX - left} cy={dotY - top} r={GEOMETRY.eventDotD / 2} className="evm-dot" />
+      </svg>
+    </button>
   );
 }
 
 /** An event with no parent role, in the lane along the top. */
-export function FloatingDot({ style, label, onSelect, selected, dim }: TapProps) {
+export function FloatingDot({ style, label, onSelect, selected, dim, soft }: TapProps) {
   return (
     <button
       type="button"
-      className={`fev tap${stateClass({ selected, dim })}`}
+      className={`fev tap${stateClass({ selected, dim, soft })}`}
       aria-label={label}
       aria-pressed={selected}
       title={label}

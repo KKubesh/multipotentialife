@@ -3,7 +3,7 @@ import type { Role, TimelineDoc } from './schema';
 
 /**
  * A fictional career used for previews, tests and "Try a sample". It covers
- * every layout case: chains, a one-month handover, a sidecar, short stints,
+ * every layout case: chains, a one-month handover, a same-company overlap, short stints,
  * events, a floating event and roles with 0-4 threads.
  */
 
@@ -112,7 +112,6 @@ export function sampleDoc(): TimelineDoc {
       start: '2020-01',
       end: '2021-10',
       threads: ['coaching', 'community'],
-      overlapStyle: 'sidecar',
     }),
     r({
       id: 'talk',

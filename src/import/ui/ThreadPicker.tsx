@@ -3,7 +3,7 @@ import { ThreadSwatch } from '../../timeline/ThreadSwatch';
 
 export interface ThreadPickerProps {
   doc: TimelineDoc;
-  /** Picked thread ids, in the order picked; the first two color the pill. */
+  /** Picked thread ids, in the order picked (the order of the dots on the pill). */
   value: string[];
   onChange: (value: string[]) => void;
 }

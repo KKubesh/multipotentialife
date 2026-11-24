@@ -23,7 +23,6 @@ export function RoleCard({ doc, items, index, onChange, onBack, onNext, onSkipTo
   const isLast = index === total - 1;
   const isEducation = item.kind === 'education';
   const datesOk = hasValidDates(item);
-  const overlapped = item.overlapsWith ? items.find((other) => other.key === item.overlapsWith) : undefined;
   const allReady = items.every((other) => other.excluded || hasValidDates(other));
 
   return (
@@ -75,35 +74,10 @@ export function RoleCard({ doc, items, index, onChange, onBack, onNext, onSkipTo
 
         <div className="field">
           <span>
-            Threads <small className="muted">optional · the first two color the pill</small>
+            Threads <small className="muted">optional · tap order sets the order of the dots</small>
           </span>
           <ThreadPicker doc={doc} value={item.threads} onChange={(threads) => onChange({ threads })} />
         </div>
-
-        {overlapped && (
-          <div className="field">
-            <span>
-              Overlaps <b>{overlapped.title || 'another role'}</b> here. Show it…
-            </span>
-            <div className="seg-ctl wide" role="group" aria-label="How to show the overlap">
-              <button
-                type="button"
-                className={item.overlapStyle === 'sidecar' ? 'on' : ''}
-                onClick={() => onChange({ overlapStyle: 'sidecar' })}
-              >
-                Alongside
-              </button>
-              <button
-                type="button"
-                className={item.overlapStyle !== 'sidecar' ? 'on' : ''}
-                onClick={() => onChange({ overlapStyle: 'separate' })}
-              >
-                Own row
-              </button>
-            </div>
-            <small className="muted">Alongside draws it as a thin band under that role.</small>
-          </div>
-        )}
 
         <DetailsEditor value={item.details} onChange={(details) => onChange({ details })} />
       </fieldset>

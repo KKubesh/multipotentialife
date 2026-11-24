@@ -5,8 +5,8 @@ import type { Selection } from '../detail/selection';
 import { HatchDefs } from './hatches';
 import { useLabelMeasurer } from './labelMeasure';
 import { fitPxPerMonth, GEOMETRY, layoutTimeline } from './layout';
-import { EventDot, FloatingDot, Pill, SidecarBand } from './Pill';
-import { pillSwatches, swatchForThread, UNTHREADED } from './palettes';
+import { EventMark, FloatingDot, Pill } from './Pill';
+import { dotColor, swatchForThread } from './palettes';
 import './timeline.css';
 
 const roleLabel = (role: Role) =>
@@ -17,7 +17,7 @@ export interface TimelineProps {
   /** 1 = the whole career fits the width; higher zooms in. */
   zoom?: number;
   now?: string;
-  /** The role or event whose detail is open; everything else fades. */
+  /** The role or event whose detail is open. */
   selection?: Selection | null;
   onSelect?: (selection: Selection) => void;
   /** Show titles regardless of the saved setting (e.g. while coloring roles). */
@@ -27,6 +27,8 @@ export interface TimelineProps {
    * coloring, for the roles that have the chosen thread).
    */
   pressedRoleIds?: ReadonlySet<string> | null;
+  /** The thread picked in the key: its roles fill in its colour and the rest fade. */
+  focusThread?: string | null;
 }
 
 /** Below this the pills get too thin to read; the timeline scrolls instead. */
@@ -41,6 +43,7 @@ export function Timeline({
   onSelect,
   forceTitles = false,
   pressedRoleIds = null,
+  focusThread = null,
 }: TimelineProps) {
   const showTitles = forceTitles || doc.settings.showTitles;
   const scroller = useRef<HTMLDivElement>(null);
@@ -82,18 +85,27 @@ export function Timeline({
   };
 
   const yearStep = pxPerMonth * 12 >= 40 ? 1 : 2;
-  const swatchesOf = (r: Role) => pillSwatches(doc, r.threads);
-
+  const focusSwatch = focusThread ? swatchForThread(doc, focusThread) : null;
   const hasSelection = selection !== null;
   const isSelected = (kind: Selection['kind'], id: string) => selection?.kind === kind && selection.id === id;
   const selectRole = (id: string, eventId?: string) => () => onSelect?.({ kind: 'role', id, eventId });
+
+  /**
+   * How a mark shows. Coloring: pressed roles, nothing fades. With a thread
+   * picked: roles without it fade; if one of its roles is open, the thread's
+   * other roles step back part way. Otherwise an open mark fades the rest.
+   */
   const tapState = (kind: Selection['kind'], id: string) => {
     if (pressedRoleIds) {
-      // Only roles take a thread here; events with no role step back.
-      return { selected: kind === 'role' && pressedRoleIds.has(id), dim: kind === 'floating' };
+      return { selected: kind === 'role' && pressedRoleIds.has(id), dim: kind === 'floating', soft: false };
     }
     const selected = isSelected(kind, id);
-    return { selected, dim: hasSelection && !selected };
+    if (focusThread) {
+      const role = kind === 'role' ? doc.roles.find((r) => r.id === id) : undefined;
+      const inFilter = !!role?.threads.includes(focusThread);
+      return { selected, dim: !inFilter, soft: inFilter && hasSelection && !selected };
+    }
+    return { selected, dim: hasSelection && !selected, soft: false };
   };
 
   return (
@@ -119,21 +131,17 @@ export function Timeline({
             />
           )}
 
-          <svg className="tl-tethers" width={layout.width} height={layout.height} aria-hidden="true">
-            {[...layout.segments.map((s) => s.label), ...layout.sidecars.map((s) => s.label)].map((l, i) =>
-              l?.tether ? <line key={i} x1={l.tether.x1} y1={l.tether.y1} x2={l.tether.x2} y2={l.tether.y2} /> : null,
-            )}
-          </svg>
-
           {layout.segments.map((s) => {
-            const lead = s.kind === 'last' || s.kind === 'mid' ? GEOMETRY.slant : 0;
-            const sw = swatchesOf(s.role);
+            // A pill after a slanted cut starts one slant early so the cut lines up.
+            const lead = s.shape === 'pill' && (s.kind === 'last' || s.kind === 'mid') ? GEOMETRY.slant : 0;
+            const lit = focusThread && s.role.threads.includes(focusThread) ? focusSwatch : null;
             return (
               <Pill
                 key={s.role.id}
                 kind={s.kind}
-                swatches={sw}
-                split={s.role.threads.length > 1}
+                shape={s.shape}
+                lit={lit}
+                dots={s.dots.map((d) => ({ x: d.x, swatch: swatchForThread(doc, d.threadId) }))}
                 label={roleLabel(s.role)}
                 style={{ left: s.left - lead, width: s.right - s.left + lead, top: s.y, height: GEOMETRY.pillH }}
                 onSelect={selectRole(s.role.id)}
@@ -142,27 +150,22 @@ export function Timeline({
             );
           })}
 
-          {layout.sidecars.map((c) => (
-            <SidecarBand
-              key={c.role.id}
-              swatch={c.role.threads[0] ? swatchForThread(doc, c.role.threads[0]) : UNTHREADED}
-              label={`${roleLabel(c.role)} · alongside`}
-              style={{ left: c.left, width: c.right - c.left, top: c.y, height: GEOMETRY.sidecarH }}
-              onSelect={selectRole(c.role.id)}
-              {...tapState('role', c.role.id)}
-            />
-          ))}
-
-          {layout.events.map((e) => (
-            <EventDot
-              key={e.event.id}
-              swatches={swatchesOf(e.role)}
-              label={`${e.event.title} · ${formatMonth(e.event.date)} · during ${e.role.title || 'role'}`}
-              style={{ left: e.x, top: e.y }}
-              onSelect={selectRole(e.role.id, e.event.id)}
-              {...tapState('role', e.role.id)}
-            />
-          ))}
+          {layout.events.map((e) => {
+            const first = e.role.threads[0];
+            return (
+              <EventMark
+                key={e.event.id}
+                dotX={e.dotX}
+                dotY={e.dotY}
+                ringX={e.ringX}
+                ringY={e.ringY}
+                color={first ? dotColor(swatchForThread(doc, first)) : '#8793a5'}
+                label={`${e.event.title} · ${formatMonth(e.event.date)} · during ${e.role.title || 'role'}`}
+                onSelect={selectRole(e.role.id, e.event.id)}
+                {...tapState('role', e.role.id)}
+              />
+            );
+          })}
 
           {layout.floating.map((f) => (
             <FloatingDot
@@ -177,35 +180,24 @@ export function Timeline({
           {[
             ...layout.segments.map((s) => ({
               l: s.label,
-              mono: swatchesOf(s.role)[0].kind === 'hatch',
-              inv: isInverted(swatchesOf(s.role)[0]),
               owner: { kind: 'role' as const, id: s.role.id },
-            })),
-            ...layout.sidecars.map((s) => ({
-              l: s.label,
-              mono: false,
-              inv: false,
-              owner: { kind: 'role' as const, id: s.role.id },
+              onHatch: focusSwatch?.kind === 'hatch' && s.role.threads.includes(focusThread!),
             })),
             ...layout.floating.map((f) => ({
               l: f.label,
-              mono: false,
-              inv: false,
               owner: { kind: 'floating' as const, id: f.event.id },
+              onHatch: false,
             })),
-          ].map(({ l, mono, inv, owner }, i) => {
+          ].map(({ l, owner, onHatch }, i) => {
             if (!l) return null;
-            const { dim } = tapState(owner.kind, owner.id);
-            const chip = mono && l.mode !== 'float' ? (inv ? ' chip inv' : ' chip') : '';
-            // Floating titles can be tapped too; titles inside a pill let the tap through to it.
+            const { dim, soft } = tapState(owner.kind, owner.id);
+            // Titles let taps through to the pill under them. On a hatch fill they get a white backing to stay readable.
             return (
               <span
                 key={i}
-                className={`tl-label ${l.mode}${chip}${dim ? ' dim' : ''}`}
-                style={{ left: l.x, top: l.y - 12, ...(l.mode === 'float' ? {} : { maxWidth: l.width }) }}
+                className={`tl-label ${l.mode}${onHatch ? ' chip' : ''}${dim ? ' dim' : ''}${soft ? ' soft' : ''}`}
+                style={{ left: l.x, top: l.y - 12, ...(l.mode === 'in' ? { maxWidth: l.width } : {}) }}
                 aria-hidden="true"
-                data-select={l.mode === 'float' || undefined}
-                onClick={l.mode === 'float' ? () => onSelect?.(owner) : undefined}
               >
                 {l.text}
               </span>
@@ -216,5 +208,3 @@ export function Timeline({
     </div>
   );
 }
-
-const isInverted = (s: ReturnType<typeof swatchForThread>) => s.kind === 'hatch' && s.inverted;

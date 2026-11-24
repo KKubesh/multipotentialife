@@ -1,9 +1,7 @@
-import { useMemo } from 'react';
 import { currentMonth } from '../data/months';
 import type { TimelineDoc } from '../data/schema';
 import { FloatingEventEditor } from '../edit/FloatingEventEditor';
 import { RoleEditor } from '../edit/RoleEditor';
-import { findSidecarHosts } from '../timeline/layout';
 import { DetailPanel } from './DetailPanel';
 import { FloatingEventDetail } from './FloatingEventDetail';
 import { relationsFor } from './relations';
@@ -34,7 +32,6 @@ export function SelectionDetail({
   editing = false,
   onDelete = () => {},
 }: SelectionDetailProps) {
-  const sidecarHosts = useMemo(() => findSidecarHosts(doc, now), [doc, now]);
   if (!selection) return null;
 
   if (selection.kind === 'role') {
@@ -59,7 +56,7 @@ export function SelectionDetail({
         <RoleDetail
           doc={doc}
           role={role}
-          relations={relationsFor(role, doc, sidecarHosts)}
+          relations={relationsFor(role, doc)}
           highlightEventId={selection.eventId}
           headingId={HEADING_ID}
           onSelect={onSelect}

@@ -27,7 +27,7 @@ describe('role detail', () => {
     const panel = screen.getByRole('dialog', { name: 'Senior Frontend Developer' });
     expect(within(panel).getByText('Brightline')).toBeInTheDocument();
     expect(within(panel).getByText(/Role change · after Frontend Developer/)).toBeInTheDocument();
-    expect(within(panel).getByText(/With Mentorship Lead alongside/)).toBeInTheDocument();
+    expect(within(panel).queryByText(/alongside/)).not.toBeInTheDocument();
     expect(within(panel).getByText('Launched component library')).toBeInTheDocument();
     expect(pill('Senior Frontend Developer')).toHaveAttribute('aria-pressed', 'true');
     expect(pill('Designer')).toHaveClass('dim');

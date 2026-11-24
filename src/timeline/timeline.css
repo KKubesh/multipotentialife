@@ -32,56 +32,29 @@
   right: 0;
   border-bottom: 1px dashed #f0f0f0;
 }
-.tl-tethers {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: visible;
-}
-.tl-tethers line {
-  stroke: #bfbfbf;
-  stroke-width: 0.75;
-}
 
-/* Pills: outer = edge, inner .fill = fill, both clipped to the same shape */
+/* Pills: gray by default; --fill and --edge change when a thread is picked. Outer = edge, inner .fill = fill, same shape. */
 .seg {
   --bw: 1.5px;
   position: absolute;
-  background: linear-gradient(180deg, var(--b1) 0 36%, var(--b2) 64% 100%);
+  background: var(--edge);
 }
 .seg > .fill {
   position: absolute;
   inset: var(--bw);
-  background: linear-gradient(180deg, var(--t1) 0 36%, var(--t2) 64% 100%);
-}
-.seg > .fill.hatched {
-  background: none;
+  background: var(--fill);
   overflow: hidden;
 }
-.seg .half {
+.seg .fill-hatch {
   position: absolute;
-  left: 0;
+  inset: 0;
   width: 100%;
-  height: 50%;
-  display: block;
+  height: 100%;
 }
-.seg .half.top {
-  top: 0;
-}
-.seg .half.bottom {
-  bottom: 0;
-}
-.seg .divider {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1.5px;
-  transform: translateY(-50%);
-}
-
 .seg.solo,
-.seg.solo > .fill {
+.seg.solo > .fill,
+.seg.circle,
+.seg.circle > .fill {
   border-radius: 22px;
 }
 .seg.first,
@@ -111,51 +84,46 @@
   clip-path: polygon(6.55px 0, calc(100% - 0.55px) 0, calc(100% - 6.55px) 100%, 0.55px 100%);
 }
 
-/* Event dots */
-.ev {
+/* Thread dots: overlapping like stacked chips, first thread on top */
+.tdot {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
   border-radius: 50%;
-  border: 2px solid transparent;
-  box-sizing: border-box;
-  z-index: 2;
-  background:
-    linear-gradient(180deg, var(--t1) 0 36%, var(--t2) 64% 100%) padding-box,
-    linear-gradient(180deg, var(--b1) 0 36%, var(--b2) 64% 100%) border-box;
-}
-.ev.hatched {
-  border: 0;
-  overflow: hidden;
-}
-.ev .ev-fill {
-  position: absolute;
-  inset: 1.5px;
-  width: calc(100% - 3px);
-  height: calc(100% - 3px);
-  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px #fff;
 }
 
-/* Sidecar band */
-.band {
+/* Events: ring above, a slanted line, a dot on the pill's top edge. Only the ring and dot take taps. */
+.evm {
   position: absolute;
-  border-radius: 7px;
-  border: 1.5px solid transparent;
-  box-sizing: border-box;
-  background:
-    linear-gradient(var(--t1), var(--t1)) padding-box,
-    linear-gradient(var(--b1), var(--b1)) border-box;
-}
-.band.hatched {
+  z-index: 2;
+  margin: 0;
+  padding: 0;
   border: 0;
-  overflow: hidden;
+  background: none;
+  pointer-events: none;
 }
-.band .band-fill {
-  position: absolute;
-  inset: 1.5px;
-  width: calc(100% - 3px);
-  height: calc(100% - 3px);
-  border-radius: 6px;
+.evm svg {
+  display: block;
+  overflow: visible;
+}
+.evm svg circle {
+  pointer-events: auto;
+}
+.evm-line {
+  stroke: #8793a5;
+  stroke-width: 1;
+}
+.evm-ring {
+  fill: #fff;
+  stroke-width: 2.5;
+}
+.evm-dot {
+  fill: #5b6576;
+  stroke: #fff;
+  stroke-width: 1;
 }
 
 /* Floating events */
@@ -169,7 +137,7 @@
   box-sizing: border-box;
 }
 
-/* Tapping: pills, bands and dots are buttons that open the detail panel */
+/* Tapping: pills, rings and dots are buttons that open the detail panel */
 .tap {
   margin: 0;
   padding: 0;
@@ -182,17 +150,19 @@
 .seg.tap {
   border: 0;
 }
-/* Pills are clipped to their shape, which hides outlines, so focus and selection thicken the edge instead. */
+/* Pills are clipped to their shape, which hides outlines, so selection and focus thicken the edge instead. */
 .seg.selected {
   --bw: 2.5px;
+}
+.seg.selected:not(.lit) {
+  --edge: #3c4656;
 }
 .seg:focus-visible {
   --bw: 3px;
   outline: none;
   background: var(--primary, #1677ff);
 }
-.ev:focus-visible,
-.band:focus-visible,
+.evm:focus-visible,
 .fev:focus-visible {
   outline: 2px solid var(--primary, #1677ff);
   outline-offset: 1px;
@@ -200,13 +170,17 @@
 .fev.selected {
   border-color: #262626;
 }
-/* While a detail is open, everything else steps back. */
+/* Two fade levels: what isn't in play, and the picked thread's other roles while one of them is open. */
 .tap.dim,
 .tl-label.dim {
-  opacity: 0.3;
+  opacity: 0.4;
+}
+.tap.soft,
+.tl-label.soft {
+  opacity: 0.7;
 }
 
-/* Titles */
+/* Titles: inside the pill, after its dots; beside a floating event's dot */
 .tl-label {
   position: absolute;
   font-size: 12px;
@@ -214,26 +188,19 @@
   white-space: nowrap;
   pointer-events: none;
   z-index: 3;
+  transition: opacity 0.2s;
 }
-.tl-label.float {
-  color: #262626;
-  pointer-events: auto;
-  cursor: pointer;
-}
-.tl-label.in,
-.tl-label.clip {
-  color: #1d1150;
+.tl-label.in {
+  color: #2b3340;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.tl-label.beside {
+  color: #262626;
+}
 .tl-label.chip {
   background: #fff;
-  color: #141414;
   border-radius: 3px;
-  padding: 0 4px;
-  margin-left: -4px;
-}
-.tl-label.chip.inv {
-  background: #141414;
-  color: #fff;
+  padding: 0 3px;
+  margin-left: -3px;
 }
