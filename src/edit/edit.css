@@ -1,0 +1,86 @@
+/* Edit mode's forms in the detail panel; field styles come from the import review. */
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.edit-form h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.edit-form h2:focus {
+  outline: none;
+}
+.edit-chain small {
+  margin-left: 4px;
+}
+.edit-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.edit-events li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--line, #f0f0f0);
+  border-radius: 10px;
+}
+.edit-events li > .field:first-child {
+  grid-column: 1;
+}
+.edit-events li > .detail-x {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+.edit-events li > .month,
+.edit-events li > .note {
+  grid-column: 1 / -1;
+}
+.edit-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line, #f0f0f0);
+}
+.edit-foot .sp {
+  flex: 1;
+}
+.edit-undo {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #262626;
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.edit-undo button {
+  border: 0;
+  background: none;
+  color: #91caff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

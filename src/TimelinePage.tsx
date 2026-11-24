@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { newId } from './data/defaults';
+import { reducer } from './data/reducer';
 import { sampleDoc } from './data/sample';
-import { PALETTE_IDS } from './data/schema';
+import { PALETTE_IDS, type Role, type TimelineDoc } from './data/schema';
 import { useTimeline } from './data/timelineContext';
 import type { Selection } from './detail/selection';
 import { SelectionDetail } from './detail/SelectionDetail';
@@ -29,6 +31,12 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
   const selection = painting ? null : chosen;
   const [brush, setBrush] = useState<string>(() => doc.threads[0]?.id ?? '');
   const [announcement, setAnnouncement] = useState('');
+  const [editing, setEditing] = useState(false);
+  // A role just added with "+ Add role": removed again if it's closed while still empty.
+  const [freshRoleId, setFreshRoleId] = useState<string | null>(null);
+  // What a delete removed, so Undo can put the timeline back as it was.
+  const [undo, setUndo] = useState<{ before: TimelineDoc; after: string; what: string } | null>(null);
+  const showUndo = undo !== null && undo.after === doc.updatedAt;
 
   const withoutThreads = countWithoutThreads(doc);
   const brushThread = doc.threads.find((thread) => thread.id === brush) ?? doc.threads[0];
@@ -41,8 +49,40 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
   );
 
   const setPainting = (on: boolean) => {
-    if (on) setSelection(null);
+    if (on) choose(null);
     onPaintingChange(on);
+  };
+
+  /** Changes what's open, first dropping a role added by hand and closed while still empty. */
+  const choose = (next: Selection | null) => {
+    if (freshRoleId && !(next?.kind === 'role' && next.id === freshRoleId)) {
+      const fresh = doc.roles.find((r) => r.id === freshRoleId);
+      if (fresh && isEmptyRole(fresh)) dispatch({ type: 'removeRole', id: fresh.id });
+      setFreshRoleId(null);
+    }
+    setSelection(next);
+  };
+
+  /** Adds a blank role (starting this month) and opens it in the form. */
+  const addRole = () => {
+    const id = newId();
+    dispatch({ type: 'addRole', role: { id } });
+    setFreshRoleId(id);
+    setSelection({ kind: 'role', id });
+  };
+
+  /** Deletes a role or moment, keeping the timeline as it was so Undo can bring it back. */
+  const remove = (target: Selection) => {
+    const role = target.kind === 'role' ? doc.roles.find((r) => r.id === target.id) : undefined;
+    const after = reducer(
+      doc,
+      target.kind === 'role' ? { type: 'removeRole', id: target.id } : { type: 'removeFloatingEvent', id: target.id },
+    );
+    dispatch({ type: 'replace', doc: after });
+    setFreshRoleId(null);
+    setSelection(null);
+    // Undo is offered until the next change to the timeline.
+    setUndo({ before: doc, after: after.updatedAt, what: role ? (role.title ? `“${role.title}”` : 'Role') : 'Moment' });
   };
 
   // Escape leaves coloring.
@@ -56,7 +96,7 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
   }, [painting, onPaintingChange]);
 
   const onTimelineTap = (tapped: Selection) => {
-    if (!painting) return setSelection(tapped);
+    if (!painting) return choose(tapped);
     const role = tapped.kind === 'role' ? doc.roles.find((r) => r.id === tapped.id) : undefined;
     if (!role || !brushThread) return;
     const threads = toggleThread(role.threads, brushThread.id);
@@ -80,6 +120,15 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
           </PdfButton>
           <button className="btn ghost" onClick={() => dispatch({ type: 'replace', doc: sampleDoc() })}>
             Or look at a sample timeline
+          </button>
+          <button
+            className="btn ghost"
+            onClick={() => {
+              setEditing(true);
+              addRole();
+            }}
+          >
+            Or add roles by hand
           </button>
           <p className="muted">You can also restore a backup from the Data tab.</p>
         </div>
@@ -111,6 +160,30 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
           <span className="track" aria-hidden="true" />
           Titles
         </label>
+        <div className="seg-ctl" role="group" aria-label="Mode">
+          <button
+            type="button"
+            className={!editing ? 'on' : ''}
+            aria-pressed={!editing}
+            onClick={() => {
+              choose(null);
+              setEditing(false);
+            }}
+          >
+            View
+          </button>
+          <button
+            type="button"
+            className={editing ? 'on' : ''}
+            aria-pressed={editing}
+            onClick={() => {
+              setPainting(false);
+              setEditing(true);
+            }}
+          >
+            Edit
+          </button>
+        </div>
         <button
           type="button"
           className={`btn small${painting ? ' pri' : ''}`}
@@ -119,6 +192,11 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
         >
           Color
         </button>
+        {editing && !painting && (
+          <button type="button" className="btn small" onClick={() => addRole()}>
+            + Add role
+          </button>
+        )}
         <div className="zoom" role="group" aria-label="Zoom">
           <button onClick={() => setZoom((z) => Math.max(0, z - 1))} disabled={zoom === 0} aria-label="Zoom out">
             −
@@ -173,8 +251,34 @@ export function TimelinePage({ onImport, painting, onPaintingChange }: TimelineP
           announcement={announcement}
         />
       ) : (
-        <SelectionDetail doc={doc} selection={selection} onSelect={setSelection} onClose={() => setSelection(null)} />
+        <SelectionDetail
+          doc={doc}
+          selection={selection}
+          onSelect={choose}
+          onClose={() => choose(null)}
+          editing={editing}
+          onDelete={remove}
+        />
+      )}
+
+      {showUndo && (
+        <div className="edit-undo" role="status">
+          {undo.what} deleted.
+          <button
+            type="button"
+            onClick={() => {
+              dispatch({ type: 'replace', doc: undo.before });
+              setUndo(null);
+            }}
+          >
+            Undo
+          </button>
+        </div>
       )}
     </main>
   );
 }
+
+/** A role with nothing filled in yet. */
+const isEmptyRole = (role: Role) =>
+  !role.title.trim() && !role.company.trim() && !role.threads.length && !role.details.length && !role.events.length;
