@@ -22,8 +22,6 @@ export interface ImportDraft {
   details: string[];
   /** Roles in a row at one company share a chain and draw as one slanted pill. */
   chain: string | null;
-  /** Key of a role at the same company this one overlaps by more than 2 months, if any. */
-  overlapsWith: string | null;
 }
 
 export interface ImportResult {
@@ -71,7 +69,6 @@ export function profileToDrafts(p: LinkedInProfile, makeId: () => string = newId
       location: r.location,
       details: r.details,
       chain: null,
-      overlapsWith: null,
     }));
 
     // Chain roles that follow one another at the same company (a promotion, a new
@@ -97,22 +94,6 @@ export function profileToDrafts(p: LinkedInProfile, makeId: () => string = newId
       const id = makeId();
       for (let c: ImportDraft | undefined = r; c; c = next.get(c)) c.chain = id;
     }
-    // A long overlap with another role here: the review asks whether it rides
-    // alongside that role or gets its own row. Point it at the role it overlaps most.
-    for (const r of dated) {
-      if (r.chain) continue;
-      let best: ImportDraft | null = null;
-      let most = CHAIN_GAP;
-      for (const o of dated) {
-        if (o === r) continue;
-        const ov = Math.min(eIdx(r), eIdx(o)) - Math.max(sIdx(r), sIdx(o));
-        if (ov > most) {
-          best = o;
-          most = ov;
-        }
-      }
-      r.overlapsWith = best?.key ?? null;
-    }
     drafts.push(...roles);
   }
 
@@ -128,7 +109,6 @@ export function profileToDrafts(p: LinkedInProfile, makeId: () => string = newId
       location: '',
       details: [],
       chain: null,
-      overlapsWith: null,
     });
   }
 
@@ -136,11 +116,7 @@ export function profileToDrafts(p: LinkedInProfile, makeId: () => string = newId
 }
 
 /** A reviewed draft becomes a role. Threads are chosen in the review; none are pre-picked. */
-export function draftToRole(
-  d: ImportDraft & { start: YearMonth; end: RoleEnd },
-  threads: string[],
-  overlapStyle: Role['overlapStyle'] = null,
-): Role {
+export function draftToRole(d: ImportDraft & { start: YearMonth; end: RoleEnd }, threads: string[]): Role {
   return {
     id: d.key,
     title: d.title.trim(),
@@ -151,6 +127,6 @@ export function draftToRole(
     details: d.details.map((t) => t.trim()).filter(Boolean),
     events: [],
     chain: d.chain,
-    overlapStyle: d.overlapsWith ? overlapStyle : null,
+    overlapStyle: null,
   };
 }

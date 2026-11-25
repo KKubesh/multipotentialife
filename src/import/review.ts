@@ -1,5 +1,5 @@
 import { monthIndex } from '../data/months';
-import type { Profile, Role, RoleEnd, TimelineDoc, YearMonth } from '../data/schema';
+import type { Profile, RoleEnd, TimelineDoc, YearMonth } from '../data/schema';
 import { draftToRole, type ImportDraft, type ImportResult } from './drafts';
 
 /**
@@ -10,7 +10,6 @@ import { draftToRole, type ImportDraft, type ImportResult } from './drafts';
 /** A draft role as the person reviews it. */
 export interface ReviewItem extends ImportDraft {
   threads: string[];
-  overlapStyle: Role['overlapStyle'];
   excluded: boolean;
 }
 
@@ -18,7 +17,7 @@ export type ImportMode = 'add' | 'replace';
 
 export function toReviewItems(drafts: ImportDraft[]): ReviewItem[] {
   // Threads are chosen in the review; none are pre-picked.
-  return drafts.map((draft) => ({ ...draft, threads: [], overlapStyle: null, excluded: false }));
+  return drafts.map((draft) => ({ ...draft, threads: [], excluded: false }));
 }
 
 /** Has a start and an end, and the end isn't before the start. */
@@ -46,13 +45,7 @@ export interface BuildOptions {
 export function buildImportedDoc(doc: TimelineDoc, items: ReviewItem[], options: BuildOptions): TimelineDoc {
   const imported = items
     .filter((item) => !item.excluded && hasValidDates(item))
-    .map((item) =>
-      draftToRole(
-        { ...item, start: item.start as YearMonth, end: item.end as RoleEnd },
-        item.threads,
-        item.overlapStyle,
-      ),
-    );
+    .map((item) => draftToRole({ ...item, start: item.start as YearMonth, end: item.end as RoleEnd }, item.threads));
 
   // A chain left with one role (the rest left out) is just a role.
   const chainSizes = new Map<string, number>();

@@ -117,7 +117,7 @@ The form reuses the import review's month field, thread picker and details edito
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pdf.ts`              | Loads pdf.js on first use and turns the PDF into text lines (column, font size, position)                                                                              |
 | `linkedin.ts`         | Reads those lines into a profile: name, headline, link, roles with dates, locations and details (one per bullet or paragraph), education                               |
-| `drafts.ts`           | Turns the profile into draft roles: fills in months for year-only dates (and flags them), chains back-to-back roles at one company, flags long same-company overlaps   |
+| `drafts.ts`           | Turns the profile into draft roles: fills in months for year-only dates (and flags them), chains back-to-back roles at one company                                     |
 | `readLinkedInFile.ts` | File → drafts, with friendly errors                                                                                                                                    |
 | `review.ts`           | Review state, date checks, and turning a finished review into the timeline (add or replace)                                                                            |
 | `PdfButton.tsx`       | The "Import LinkedIn PDF" button and file picker                                                                                                                       |
