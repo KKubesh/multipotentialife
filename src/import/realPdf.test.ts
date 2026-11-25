@@ -33,7 +33,7 @@ describe.skipIf(!files.length)('real LinkedIn PDFs', () => {
       for (const d of drafts) {
         out.push(
           `${(d.start ?? '?').padEnd(7)}${flag(d.startPrecision)} – ${(d.end ?? '?').padEnd(7)}${flag(d.endPrecision)} ${d.kind === 'education' ? '🎓 ' : ''}${d.title} @ ${d.company}` +
-            `${d.chain ? ' [chain]' : ''}${d.overlapsWith ? ' [overlap]' : ''} · ${d.details.length} details`,
+            `${d.chain ? ' [chain]' : ''} · ${d.details.length} details`,
         );
       }
       console.log(out.join('\n'));

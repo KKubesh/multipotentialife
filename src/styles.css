@@ -15,12 +15,22 @@
   --warn-line: #ffe58f;
   --brand: #722ed1;
   --radius: 8px;
+  /* Light only until there's a dark design: a dark OS or a browser's forced dark mode would
+     otherwise draw system-coloured text on our white surfaces. index.html says the same. */
+  color-scheme: only light;
   font-family: Lato, system-ui, sans-serif;
   color: var(--text);
   background: var(--bg);
 }
 * {
   box-sizing: border-box;
+}
+/* Controls take the app's text colour, never the system's (classes still set their own). */
+button,
+input,
+select,
+textarea {
+  color: inherit;
 }
 body {
   margin: 0;

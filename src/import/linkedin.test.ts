@@ -165,13 +165,12 @@ describe('profileToDrafts', () => {
     });
   });
 
-  it('chains a promotion and flags a long overlap at the same company', () => {
+  it('chains a promotion; a long overlap at the same company stays its own role', () => {
     const [senior, carto, committee] = drafts;
     expect(senior.chain).toBeTruthy();
     expect(senior.chain).toBe(carto.chain);
+    // Overlaps both by more than 2 months: not part of the chain, and not tied to either.
     expect(committee.chain).toBeNull();
-    // Overlaps both; points at the one it overlaps most (Mar 2021 – May 2022).
-    expect(committee.overlapsWith).toBe(senior.key);
   });
 
   it('marks year-only and missing dates for the review', () => {

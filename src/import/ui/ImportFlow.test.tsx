@@ -20,7 +20,6 @@ const draft = (over: Partial<ImportDraft>): ImportDraft => ({
   location: '',
   details: [],
   chain: null,
-  overlapsWith: null,
   ...over,
 });
 
